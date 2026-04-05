@@ -1,0 +1,31 @@
+{
+  "ThisLanguage": "Čeština",
+
+  "Back": "Zpět",
+  "Close": "Zavřít",
+  "Pin": "Pamatovat",
+  "Unpin": "Zapomenout",
+  "Pinned": "Vzpomenout",
+
+  "MainMenuPanel": "Hlavní Menu",
+  "SettingsPanel": "Nastavení Aplikace",
+
+  "SettingsApp": "Nastavení Aplikace",
+  "NetworkSelect": "Síť: ",
+  "WalletSelect": "Peněženka: ",
+  "AccountSelect": "Účet: ",
+  "Select": "-VYBER-",
+  "OpenAccount": "Otevřít Účet",
+  "TransactionDetails": "Detaily Transakcí",
+  "Faq": "FAQ",
+
+  "DisplayMode": "Režim Zobrazení: ",
+  "Language": "Jazyk: ",
+  "Fullscreen": "Celá Obrazovka",
+  "MultiWindow": "Mnohočetná Okna",
+  "SingleWindow": "Samotné Okno",
+  "CentralFont": "Ovládací Písmo: ",
+  "InfoFont": "Informační Písmo: ",
+  "ResetToDefault": "Zpět na Tovární Nastavení: ",
+  "Reset": "RESET"
+}
