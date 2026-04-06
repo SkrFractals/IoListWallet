@@ -28,9 +28,9 @@ Every IoPanel (root content inside a window/dock) in the app is either a IoBook 
 - Bottom text shows the result counter: S - F / T. Where S is shown entries, F is filtered out entries, T is total entries (=S+F).
 
 ### IoProcess
-- An IoBook that will override the content of the parent panel, with a modal process, where you have to go through some steps to do something.
+- An IoBook overriding the content of the parent panel, with a modal process, where you have to go through some steps to do something.
 - When failed, successful, or went back, the parent content will activate back.
-- Build Tx: 1. Lacking inputs (add auto/manually) 2. Lacking change address (select account/customaddress), 3. Withdraw rewards? (Yes/No...), ...
+- Build Tx: 1. Lacking inputs (add auto/manually) 2. Lacking change address (select account/customaddress), 3. Withdraw rewards?, ...
 - Add Wallet: 1. How (restore/new/import/HW/multisig/readonly, ...), 2. further stuff like derivation, seed words etc.
 - Add account: 1. Index + Name.
 
@@ -45,9 +45,9 @@ Every IoPanel (root content inside a window/dock) in the app is either a IoBook 
 - Display modes - fullscreen, windowed, multi-window (multi-window opens each IoPanel in a separate window).
 - Docking multiple IoPanels into one window **(NOT FULLY IMPLEMENTED YET)**
 - Adaptive to any resolution or control scheme.
-- Pinnable IoPanels - any non-modal IoPanel can toggle being pinned at the bottom toolbar, to be then found in the Pinned list for fast travel.
+- Pinnable IoPanels - non-modal IoPanels can toggle being pinned at the bottom toolbar, then found in the Pinned list for fast travel.
 - Anything can have a tooltip with extra info/instructions, when hovered over with the cursor.
-- Permanency - any closed screen (if not specifically **DELETED** with a button) wil lreopen with previous state, even after restarting the app!
+- Permanency - any closed screen (if not specifically **DELETED**) wil lreopen with previous state, even after restarting the app!
 - Complex address books.
 - Complex filtering of any IoList, and EVERYTHING that can be expressed as a list is an IoList.
 - Complex TxBuilder - allows to batch any set of all kinds of actions into a single transaction. **(NOT IMPLEMENTED YET)**
