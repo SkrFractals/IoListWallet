@@ -122,7 +122,7 @@ Or you can go to the inputs tab and add specific collections of UTxOs you want t
 Building the transaction in the overview will report any errors, warnings, or ask you to fill in anything missing, or do so automatically.  
 For non-output actions like rewards, delegate, vote, etc., you will find those in the account tabs (the Tx overview can also lead there)  
 
-## Build, Sign and Broadcast the transaction  
+## 6. Build, Sign and Broadcast the transaction  
 This is done in the overview page, after reading the overview to make sure what you are doing, you click the Build button.  
 It will go through all the chacks, like checking valid inputs, balancing the transaction and selecting change. Finally computes the fee.  
 When it's built, you will be able to sign. It will open a list of required signatures and lets you sign them all, one by one, or in batch.  
