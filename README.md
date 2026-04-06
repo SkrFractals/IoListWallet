@@ -58,13 +58,13 @@ Every IoPanel (root content inside a window/dock) in the app is either an IoBook
   
 # How to use
   
-The app has a layered design. The home page has one row for each layer.
-**App** -> Profiles[] *(needs a login)*
-**Profile** -> Networks[] *(needs a profile)*
-**Network** -> Transactions[] + Wallets[] *(need a network)*
-**Wallet** -> Accounts[]  *(needs a wallet)*
-**Account** -> UTxOs[] *(needs an account)*
-**Transaction Builder** *(needs UTxOs to pay for them)*
+The app has a layered design. The home page has one row for each layer.  
+**App** -> Profiles[] *(needs a login)*  
+**Profile** -> Networks[] *(needs a profile)*  
+**Network** -> Transactions[] + Wallets[] *(need a network)*  
+**Wallet** -> Accounts[]  *(needs a wallet)*  
+**Account** -> UTxOs[] *(needs an account)*  
+**Transaction Builder** *(needs UTxOs to pay for them)*  
   
 Unlike many other accounts, where you go into an account to create a transaction...  
 ...this wallet goes somewhat in reverse. First, you build a transaction, and then select which accounts pay for it.  
