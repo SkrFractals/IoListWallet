@@ -117,11 +117,12 @@ After everything you want to happen is in the outputs, you can go to the overvie
 Or you can go to the inputs tab and add specific collections of UTxOs you want to spend.  
 Building the transaction in the overview will report any errors, warnings, or ask you to fill in anything missing, or do so automatically.  
 For non-output actions like rewards, delegate, vote, etc., you will find those in the account tabs (the Tx overview can also lead there)  
+But fairly, there is also a "Make Transaction" button. It just redirects to the builder, and pre-selects that account for inputs and change.
   
 # How to send ALL?  
 This is a great question that might appear puzzling at first...  
 ...but if you understand how the wallet works, it's a pretty easy and interesting way to do it! (but there will be warnings, don't worry)  
-Make a fresh transaction with no outputs, and immediately try to build it.  
+You will really need to use the intended backwards path: Make a fresh transaction with no outputs, and immediately try to build it.  
 It will ask for input to pay for the small transaction fee, and you will click to select manually.  
 On the UTxO selection page, open the filter, and make sure it shows all your accounts you want to send all from, with no filters.  
 Click "Select All". The builder is now satisfied with the inputs, as long as you actually have any coins to even pay the fee.  
