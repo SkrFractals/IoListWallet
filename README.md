@@ -123,8 +123,9 @@ For non-output actions like rewards, delegate, vote, etc., you will find those i
 But fairly, there is also a "Make Transaction" button. It just redirects to the builder, being a 1 step longer path to get there.
   
 # How to send ALL?  
-This is a great question that might appear puzzling at first...  
-...but if you understand how the wallet works, it's a pretty easy and interesting way to do it! (but there will be warnings, don't worry)  
+This is a great question that might appear puzzling at first, as there's no simple "Send all" button...  
+...but if you understand how the wallet works, IoList's way to do this is quite interesting, and still very easy!  
+(but there will be big warnings and pushing the smaller of the buttons a few times, so don't worry of doing it by accident).  
 You will really need to use the intended backwards path: Make a fresh transaction with no outputs, and immediately try to build it.  
 It will ask for input to pay for the small transaction fee, and you will click to select manually.  
 On the UTxO selection page, open the filter, and make sure it shows all your accounts you want to send all from, with no filters.  
