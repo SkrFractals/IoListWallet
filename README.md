@@ -117,7 +117,7 @@ After everything you want to happen is in the outputs, you can go to the overvie
 Or you can go to the inputs tab and add specific collections of UTxOs you want to spend.  
 Building the transaction in the overview will report any errors, warnings, or ask you to fill in anything missing, or do so automatically.  
 For non-output actions like rewards, delegate, vote, etc., you will find those in the account tabs (the Tx overview can also lead there)  
-But fairly, there is also a "Make Transaction" button. It just redirects to the builder, and pre-selects that account for inputs and change.
+But fairly, there is also a "Make Transaction" button. It just redirects to the builder, being a 1 step longer path to get there.
   
 # How to send ALL?  
 This is a great question that might appear puzzling at first...  
