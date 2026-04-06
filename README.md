@@ -67,12 +67,13 @@ The app has a layered design. The home page has one row for each layer.
 **Transaction Builder** *(needs UTxOs to pay for them)*  
   
 Unlike many other accounts, where you go into an account to create a transaction...  
-...this wallet goes somewhat in reverse. First, you build a transaction, and then select which accounts pay for it.  
+...this wallet goes somewhat in reverse. First, you formulate a transaction, and then select which accounts pay for it.  
 You don't open the account here to make payments.  
 The account place is for you to just look around, like getting a receive address.  
 (But account-certified things are here, like voting, signing messages or withdrawing rewards.)  
 When you want to send payments or access DeFi, you go straight from the home screen to the transaction builder.  
-And when you build it, it will ask you who pays for it and where to send the change back to.  
+But fairly, there is also a "Make Transaction" button. It just redirects to the builder, being a 1 step longer path to get there.
+And after you formulate the transaction, it will ask you who pays for it and where to send the change back to.  
 Here are the layered steps of the wallet usage. The first 4 can be only initial for casual users.  
 So that after the setup they ould even go to the Main Menu filter and hide those network/wallet layers.  
 Also the app will do its best to activelly push and guide you to initialize these steps, if they are not prepared yet.  
@@ -111,7 +112,7 @@ The account settings are accessible with the little button to the right of the a
 To the right in the account settings, you can set up your account and see what's there.  
 Or swipe in any other direction, or click Back, or close a multiwindow to go back to the home screen.  
   
-## 5. Build a transaction  
+## 5. Formulate a transaction  
 The fifth row on the home screen is the transaction builder.  
 In the overview page, you will see the big picture...  
 ...like what total of any coins or tokens are sent from which accounts/wallets, to which recipients. You also sign and broadcast here.  
@@ -120,7 +121,13 @@ After everything you want to happen is in the outputs, you can go to the overvie
 Or you can go to the inputs tab and add specific collections of UTxOs you want to spend.  
 Building the transaction in the overview will report any errors, warnings, or ask you to fill in anything missing, or do so automatically.  
 For non-output actions like rewards, delegate, vote, etc., you will find those in the account tabs (the Tx overview can also lead there)  
-But fairly, there is also a "Make Transaction" button. It just redirects to the builder, being a 1 step longer path to get there.
+
+## Build, Sign and Broadcast the transaction  
+This is done in the overview page, after reading the overview to make sure what you are doing, you click the Build button.  
+It will go through all the chacks, like checking valid inputs, balancing the transaction and selecting change. Finally computes the fee.  
+When it's built, you will be able to sign. It will open a list of required signatures and lets you sign them all, one by one, or in batch.  
+When it's signed you can broadcast. Or you can make any edits, which will reset the build, and deprecate the signatures.  
+You coudl also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible.  
   
 # How to send ALL?  
 This is a great question that might appear puzzling at first, as there's no simple "Send all" button...  
