@@ -24,7 +24,7 @@ Every IoPanel (root content inside a window/dock) in the app is either a IoBook 
 - Can be toggle by clicking the Filter button, or (if the IoList is not inside an IoBook) by swiping the list horizontally.
 - First page lets you chose how to sort (two levels or sorting, the secondary will sort the pockets or identically primary sorted entries).
 - Further pages are searchign conditions, if the entry will satisfy at least one tab (tabs are OR), it will be shown.
-- Each tab can search within any of the properties of the entry that are enabled, tab will be satisfied if all enabled properties in that tab match.
+- Each tab searches within any of the enabled properties of the entry, a tab will be satisfied if all enabled properties in that tab match.
 - Bottom text shows the result counter: S - F / T. Where S is shown entries, F is filtered out entries, T is total entries (=S+F).
 
 ### IoProcess
@@ -45,7 +45,7 @@ Every IoPanel (root content inside a window/dock) in the app is either a IoBook 
 - Display modes - fullscreen, windowed, multi-window (multi-window opens each IoPanel in a separate window).
 - Docking multiple IoPanels into one window **(NOT FULLY IMPLEMENTED YET)**
 - Adaptive to any resolution or control scheme.
-- Pinnable IoPanels - any non-modal IoPanel can toggle being pinned at the bottom toolbar, it will then appear in the Pinned list for fast travel.
+- Pinnable IoPanels - any non-modal IoPanel can toggle being pinned at the bottom toolbar, to be then found in the Pinned list for fast travel.
 - Anything can have a tooltip with extra info/instructions, when hovered over with the cursor.
 - Permanency - any closed screen (if not specifically **DELETED** with a button) wil lreopen with previous state, even after restarting the app!
 - Complex address books.
