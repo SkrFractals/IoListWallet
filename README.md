@@ -47,7 +47,7 @@ Every IoPanel (root content inside a window/dock) in the app is either an IoBook
 - Adaptive to any resolution or control scheme.
 - Pinnable IoPanels - non-modal IoPanels can toggle being pinned at the bottom toolbar, then found in the Pinned list for fast travel.
 - Anything can have a tooltip with extra info/instructions when hovered over with the cursor.
-- Permanency - any closed screen (if not specifically **DELETED**) will reopen with the previous state, even after restarting the app!
+- Permanency - any closed screen (if not specifically **REMOVED**) will reopen with the previous state, even after restarting the app!
 - Complex address books.
 - Complex filtering of any IoList, and EVERYTHING that can be expressed as a list is an IoList.
 - Complex TxBuilder - allows for batch any set of all kinds of actions into a single transaction. **(NOT IMPLEMENTED YET)**
