@@ -53,7 +53,7 @@ Every IoPanel (root content inside a window/dock) in the app is either an IoBook
 - Complex TxBuilder - allows for batch any set of all kinds of actions into a single transaction. **(NOT IMPLEMENTED YET)**  
 - Rebroadcasting - edit the pending transaction if it is not on-chain yet. Redirect bad tx, bump fee, ... **(NOT IMPLEMENTED YET)**  
 - Automatic and manual transaction input selection **(NOT IMPLEMENTED YET)**  
-- - Multi-delegation for dPOS chains **(NOT IMPLEMENTED YET)**  
+- Multi-delegation for dPOS chains **(NOT IMPLEMENTED YET)**  
 - Peer-2-Peer DeFi for smart chains **(NOT IMPLEMENTED YET)**  
   
 # How to use  
