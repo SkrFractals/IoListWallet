@@ -35,7 +35,7 @@ Every IoPanel (root content inside a window/dock) in the app is either a IoBook 
 - Add account: 1. Index + Name.
 
 ## Features
-- Multi-platform build in Avalonia. **(NOT TESTED YET BEYOND WINDOWS)**
+- Multi-platform build in Avalonia. <span style="color: #AA0000;">**(NOT TESTED YET BEYOND WINDOWS)**</span> 
 - Multi-lingual support, with a secondary layer where you can replace some texts with symbols.
 - Multi-profile support - each profile is a completely separate save folder, with it's own networks, app settings, password, etc.
 - Multi-chain support. **(NO CHAINS FULLY IMPLEMENTED YET)**
