@@ -73,6 +73,9 @@ The account place is for you to just look around, like getting a receive address
 (But account-certified things are here, like voting, signing messages or withdrawing rewards.)  
 When you want to send payments or access DeFi, you go straight from the home screen to the transaction builder.  
 And when you build it, it will ask you who pays for it and where to send the change back to.  
+Here are the layered steps of the wallet usage. The first 4 can be only initial for casual users.
+So that after the setup they ould even go to the Main Menu filter and hide those network/wallet layers.
+Also the app will do its best to activelly push and guide you to initialize these steps, if they are not prepared yet.
   
 ## 1. Log in to your profile (if not already logged in)  
 The app will create and select a profile if there isn't one.  
@@ -99,7 +102,7 @@ The wallet settings are accessible with the little button to the right of the wa
 To the right in the wallet settings, you can set up your wallet or access accounts.  
 Or swipe in any other direction, or click Back, or close a multiwindow to go back to the home screen.  
   
-## 3. Make/Select an account (if not already selected)  
+## 4. Make/Select an account (if not already selected)  
 The fourth row on the home screen is the account selection.  
 At the startup, the last account you were in will be selected.  
 You will be prompted to make an account if there's none. You can also make another account by clicking the Add Account button.  
@@ -108,7 +111,7 @@ The account settings are accessible with the little button to the right of the a
 To the right in the account settings, you can set up your account and see what's there.  
 Or swipe in any other direction, or click Back, or close a multiwindow to go back to the home screen.  
   
-## 3. Build a transaction  
+## 5. Build a transaction  
 The fifth row on the home screen is the transaction builder.  
 In the overview page, you will see the big picture...  
 ...like what total of any coins or tokens are sent from which accounts/wallets, to which recipients. You also sign and broadcast here.  
