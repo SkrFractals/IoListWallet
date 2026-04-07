@@ -32,9 +32,9 @@ A special modal IoBook, that swipes pages with the back and comfirm button inste
 ...where you have to go through some steps to perform some process.  
 When failed, successful, or went back, it closes bback to the parent panel.  
 Examples:  
-Build Tx: 1. Lacking inputs (add auto/manually) 2. Lacking change address (select account/customAddress), 3. Withdraw rewards?, ...  
-Add Wallet: 1. How (restore/new/import/HW/multisig/readOnly, ...), 2. further stuff like derivation, seed words, etc.  
-Add account: 1. Index + Name.  
+Build Tx: Wrong inputs? -> Lacking inputs? (add auto/manually) -> No change address? (select account/customAddress) -> Withdraw rewards?, ...  
+Add Wallet: How (restore/new/import/HW/multisig/readOnly, ...) -> Further stuff like derivation, seed words, etc.  
+Add account: Indices + Names + which to select.  
   
 ## Features
 - Multi-platform build in Avalonia. **(NOT TESTED BEYOND WINDOWS YET, BUT WILL PROBABLY RUN OK)**  
