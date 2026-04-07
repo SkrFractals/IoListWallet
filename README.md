@@ -35,15 +35,15 @@ Add Wallet: 1. How (restore/new/import/HW/multisig/readOnly, ...), 2. further st
 Add account: 1. Index + Name.  
   
 ## Features
-- Multi-platform build in Avalonia. **(NOT TESTED YET BEYOND WINDOWS)**  
+- Multi-platform build in Avalonia. **(NOT TESTED BEYOND WINDOWS YET, BUT WILL PROBABLY RUN OK)**  
 - Multi-lingual support, with a secondary layer where you can replace some texts with symbols.  
 - Multi-profile support - each profile is a completely separate save folder, with its own networks, app settings, password, etc.  
 - Multi-chain support. **(NO CHAINS FULLY IMPLEMENTED YET)**  
-- Multi-wallet and multi-account support. **(NOT FULLY IMPLEMENTED YET)**  
+- Multi-wallet and multi-account support. **(~70% IMPLEMENTED)**  
 - Profile encryption - if you add a password to a profile, it will encrypt everything beyond the basic profile settings with that password.  
 - Extensive customizability.  
 - Display modes - fullscreen, windowed, multi-window (multi-window opens each IoPanel in a separate window).  
-- Docking multiple IoPanels into one window **(NOT FULLY IMPLEMENTED YET)**  
+- Docking multiple IoPanels into one window **(~70% IMPLEMENTED)**  
 - Adaptive to any resolution or control scheme.  
 - Pinnable IoPanels - non-modal IoPanels can toggle being pinned at the bottom toolbar, then found in the Pinned list for fast travel.  
 - Anything can have a tooltip with extra info/instructions when hovered over with the cursor.  
@@ -53,8 +53,9 @@ Add account: 1. Index + Name.
 - Complex TxBuilder - allows for batch any set of all kinds of actions into a single transaction. **(NOT IMPLEMENTED YET)**  
 - Rebroadcasting - edit the pending transaction if it is not on-chain yet. Redirect bad tx, bump fee, ... **(NOT IMPLEMENTED YET)**  
 - Automatic and manual transaction input selection **(NOT IMPLEMENTED YET)**  
-- Multi-delegation for dPOS chains **(NOT IMPLEMENTED YET)**  
-- Peer-2-Peer DeFi for smart chains **(NOT IMPLEMENTED YET)**  
+# Wishful features   
+- Multi-delegation for dPOS chains **(I HOPE, NOT IMPLEMENTED YET)**  
+- Peer-2-Peer DeFi for smart chains **(I HOPE, NOT IMPLEMENTED YET)**  
   
 # How to use  
   
