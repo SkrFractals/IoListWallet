@@ -128,7 +128,7 @@ This is done in the overview page, after reading the overview to make sure what 
 It will go through all the chacks, like checking valid inputs, balancing the transaction and selecting change. Finally computes the fee.  
 When it's built, you will be able to sign. It will open a list of required signatures and lets you sign them all, one by one, or in batch.  
 When it's signed you can broadcast. Or you can make any edits, which will reset the build, and deprecate the signatures.  
-You coudl also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible. 
+You coudl also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible.  
 A simple mode will merge the three Proccess into one.  
   
 # How to send ALL?  
