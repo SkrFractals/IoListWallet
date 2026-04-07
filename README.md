@@ -53,7 +53,7 @@ Add account: 1. Index + Name.
 - Complex TxBuilder - allows for batch any set of all kinds of actions into a single transaction. **(NOT IMPLEMENTED YET)**  
 - Rebroadcasting - edit the pending transaction if it is not on-chain yet. Redirect bad tx, bump fee, ... **(NOT IMPLEMENTED YET)**  
 - Automatic and manual transaction input selection **(NOT IMPLEMENTED YET)**  
-# Wishful features   
+### Wishful features   
 - Multi-delegation for dPOS chains **(I HOPE, NOT IMPLEMENTED YET)**  
 - Peer-2-Peer DeFi for smart chains **(I HOPE, NOT IMPLEMENTED YET)**  
   
