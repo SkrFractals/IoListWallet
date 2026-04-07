@@ -10,14 +10,14 @@ Every IoPanel (root content inside a window/dock) in the app is either an IoBook
 Has page tabs at the top, and can also swipe between the tabs horizontally with drag gestures.  
 Swiping up, down, or to the left of the first page will close the IoBook.  
 Each page can contain a list of custom rows, typically Settings, or a single-row fullscreen IoList.  
-Used for Settings of anything, or a BookFilter, or IoProcess.  
+Examples: Settings/Edits of anything that isn't a list of similar items + specials like BookFilter, or IoProcess...  
   
 ### IoList  
 Has a toolbar on the top (windowed) or bottom (fullscreen)  
 The toolbar contains a page select, page size scaler (entries per page), and optionally extra custom buttons.  
 The pages can also be swiped vertically (like how IoBook pages are swiped horizontally).  
 Each IoList comes with a retractable BookFilter with filtering options.  
-Used for selectors and list-viewers of anything, like: Main Menu, Transaction History, UTxOs, ...  
+Examples:  Selectors and list-viewers of anything, like: Main Menu, Transaction History, UTxOs, ...  
   
 ### BookFilter  
 A special IoBook that comes included with every List as a retractable panel.  
@@ -28,8 +28,10 @@ Each tab searches within any of the enabled properties of the entry. A tab will 
 Bottom shows the result counter: S - F / T. Where S are the shown entries, F are the filtered out entries, T are the total entries (=S+F).  
   
 ### IoProcess  
-An IoBook overriding the content of the parent panel, with a modal process, where you have to go through some steps to do something.  
-When failed, successful, or went back, the parent content will activate back.  
+A special modal IoBook, that swipes pages with the back and comfirm button instead of freely...  
+...where you have to go through some steps to perform some process.  
+When failed, successful, or went back, it closes bback to the parent panel.  
+Examples:  
 Build Tx: 1. Lacking inputs (add auto/manually) 2. Lacking change address (select account/customAddress), 3. Withdraw rewards?, ...  
 Add Wallet: 1. How (restore/new/import/HW/multisig/readOnly, ...), 2. further stuff like derivation, seed words, etc.  
 Add account: 1. Index + Name.  
