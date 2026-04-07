@@ -129,7 +129,7 @@ It will go through all the chacks, like checking valid inputs, balancing the tra
 When it's built, you will be able to sign. It will open a list of required signatures and lets you sign them all, one by one, or in batch.  
 When it's signed you can broadcast. Or you can make any edits, which will reset the build, and deprecate the signatures.  
 You coudl also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible.  
-A simple mode will merge the three Proccess into one.  
+A simple mode will merge the three Processes into one.  
   
 # How to send ALL?  
 This is a great question that might appear puzzling at first, as there's no simple "Send all" button...  
