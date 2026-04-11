@@ -69,17 +69,9 @@ The app has a layered design. The home page has one row for each layer.
 **Account** -> UTxOs[] *(needs an account)*  
 **Transaction Builder** *(needs UTxOs to pay for them)*  
   
-Unlike many other accounts, where you go into an account to create a transaction...  
-...this wallet goes somewhat in reverse. First, you formulate a transaction, and then select which accounts pay for it.  
-You don't open the account here to make payments.  
-The account place is for you to just look around, like getting a receive address.  
-(But account-certified things are here, like voting, signing messages or withdrawing rewards.)  
-When you want to send payments or access DeFi, you go straight from the home screen to the transaction builder.  
-But fairly, there is also a "Make Transaction" button. It just redirects to the builder, being a 1 step longer path to get there.
-And after you formulate the transaction, it will ask you who pays for it and where to send the change back to.  
 Here are the layered steps of the wallet usage. The first 4 can be only initial for casual users.  
-So that after the setup they ould even go to the Main Menu filter and hide those network/wallet layers.  
-Also the app will do its best to activelly push and guide you to initialize these steps, if they are not prepared yet.  
+So that after the setup they could even go to the Main Menu filter and hide those network/wallet layers.  
+Also the app will do its best to actively push and guide you to initialize these steps, if they are not prepared yet.  
   
 ## 1. Log in to your profile (if not already logged in)  
 The app will create and select a profile if there isn't one.  
@@ -130,7 +122,7 @@ This is done in the overview page, after reading the overview to make sure what 
 It will go through all the chacks, like checking valid inputs, balancing the transaction and selecting change. Finally computes the fee.  
 When it's built, you will be able to sign. It will open a list of required signatures and lets you sign them all, one by one, or in batch.  
 When it's signed you can broadcast. Or you can make any edits, which will reset the build, and deprecate the signatures.  
-You coudl also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible.  
+You could also edit it after broadcasting, as long as it's not on chain yet, you might re-broadcast edits, with a bumped fee if possible.  
 A simple mode will merge the three Processes into one.  
   
 # How to send ALL?  
