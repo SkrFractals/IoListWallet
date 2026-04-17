@@ -18,6 +18,12 @@
     <Content Include="Locales\cs-cz.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="LocalesSub\x.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LocalesSub\emoji.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Locales\en-us.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

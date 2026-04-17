@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using static IoListWallet.AppSave;
+using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Structs.Crypto;
 
@@ -10,6 +10,8 @@ internal class IoApp {
     #region APP - Profile:
     [Save] // Name of this profile
     internal int Profile { get; set { field = value; Dirty = true; } } = -1;
+    [Save] // First launch?
+    internal bool First { get; set { field = value; Dirty = true; } } = true;
     #endregion
 
     #region PRO

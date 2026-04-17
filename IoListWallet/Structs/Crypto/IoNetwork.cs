@@ -1,7 +1,7 @@
 ﻿using Avalonia.Media;
 using System;
 using System.Collections.Generic;
-using static IoListWallet.AppSave;
+using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Structs.Crypto;
 internal abstract class IoNetwork {
@@ -59,7 +59,7 @@ internal abstract class IoNetwork {
 
     // TODO: Manually dirtied:
     [Save] // Custom address book
-    internal List<AddressBookEntry> AddressBook { get; set { field = value; Dirty = true; } } = [];
+    internal Dictionary<int, AddressBookEntry> AddressBook { get; set { field = value; Dirty = true; } } = [];
 
     // Autosave
     [Save] // Selected Wallet
@@ -72,6 +72,7 @@ internal abstract class IoNetwork {
     // carries from default constructor:
     internal string Blockchain = "";
     internal string Ticker = "";
+    internal string MyCoinPrefix = "";
     internal object MyNetwork = 0;
     internal Type[] AddressTypes = [];
     internal bool Faucet = false;

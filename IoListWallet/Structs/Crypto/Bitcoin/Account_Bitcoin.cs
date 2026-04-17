@@ -1,4 +1,5 @@
-﻿using System;
+﻿using IoListWallet.Core.Static;
+using System;
 namespace IoListWallet.Structs.Crypto.Bitcoin;
 internal sealed class Account_Bitcoin : IoAccount {
     //internal Account_Bitcoin() { }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using IoListWallet.Core.Static;
+using System.Collections.Generic;
 namespace IoListWallet.Structs.Crypto;
 internal abstract class IoTxo {
     // all user's txo should be generated this way, single we alraedy should also load all the user's tranasctions so we could also browse that history

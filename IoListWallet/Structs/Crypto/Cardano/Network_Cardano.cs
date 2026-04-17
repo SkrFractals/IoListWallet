@@ -28,5 +28,6 @@ internal sealed class NetworkCardano_TestNet : NetworkCardano {
     public NetworkCardano_TestNet() : base() {
         Faucet = false;
         MyNetwork = "Testnet";
+        MyCoinPrefix = "t";
     }
 }

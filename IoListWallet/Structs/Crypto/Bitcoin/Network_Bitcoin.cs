@@ -29,11 +29,13 @@ internal sealed class NetworkBitcoin_TestNet : NetworkBitcoin {
     public NetworkBitcoin_TestNet() : base() {
         Faucet = false;
         MyNetwork = NBitcoin.Network.TestNet;
+        MyCoinPrefix = "t";
     }
 }
 internal sealed class NetworkBitcoin_RegTest : NetworkBitcoin {
     public NetworkBitcoin_RegTest() : base() {
         Faucet = false;
         MyNetwork = NBitcoin.Network.RegTest;
+        MyCoinPrefix = "t";
     }
 }

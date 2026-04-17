@@ -1,4 +1,5 @@
-﻿using NBitcoin;
+﻿using IoListWallet.Core.Static;
+using NBitcoin;
 namespace IoListWallet.Structs.Crypto.Bitcoin;
 internal sealed class Transaction_Bitcoin : IoTransaction {
     internal override void Sign(IoNetwork MyNetwork) {

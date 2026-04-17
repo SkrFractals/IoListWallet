@@ -1,7 +1,7 @@
-﻿using IoListWallet.MainControls.Panels;
+﻿using IoListWallet.Core.Panels;
 using NBitcoin;
 using System.Collections.Generic;
-using static IoListWallet.AppSave;
+using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Structs.Crypto;
 internal enum TxState {

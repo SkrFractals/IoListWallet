@@ -5,7 +5,7 @@
 
 using System;
 using System.Collections.Generic;
-using static IoListWallet.AppSave;
+using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Structs.Crypto;
 
