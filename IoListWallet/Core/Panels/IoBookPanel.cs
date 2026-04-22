@@ -27,6 +27,10 @@ internal abstract class IoBookPanel : IoPanel {
         MyContent.Content ??= Book;
         Book.PrepareLayout(available);
     }
+    internal override void Delete(bool refresh = true) {
+        base.Delete(refresh);
+        Book.Delete();
+    }
 
     internal override Size PrepareLayout(Size available) {
         var bookSize = Book.MinSize;

@@ -98,6 +98,7 @@ internal class IoBook : IoUserControl {
         if (c is ContentControl b && b.Content is Control con)
             ApplyTemplatesRecursive(con);
     }
+    internal void Delete() => Swipe.Delete();
     internal override Size PrepareLayout(Size available) {
 
         RefreshToolbar(false); // contents of this function:
@@ -175,8 +176,7 @@ internal class IoBook : IoUserControl {
     /// <param name="controls">top layers of controls to attach, with size weights</param>
     /// <param name="labelBrush">Color of he label text</param>
     internal void MakeRow(FillPageEventArgs e, string entryKey, string labelTextLocaleText, (Control Control, double Size)[] controls, IImmutableSolidColorBrush? labelBrush = null) {
-        //var s = e.Simulated ? GridLength.Auto : GridLength.Star;
-        //var gut = e.Simulated ? GridUnitType.Auto : GridUnitType.Star;
+        // entryKey must be unique and must have a format: s + "string";
         var s = e.Simulated ? "s." : "";
         if (!dGrids.TryGetValue(s + "page." + e.Page.X.ToString(), out var g) || g == null)
             throw new(F + "MakeRow.Grid");
@@ -258,7 +258,7 @@ internal class IoBook : IoUserControl {
     internal Grid? GetPage(int Page)
         => Page >= 0 ? ((dGrids.TryGetValue("page." + Page.ToString(), out var p) ? p : null)
             ?? throw new(F + "GetPage " + Page.ToString())) : null;
-    internal (TextBlock Text, IoToggleButton Button)? GetPageButton(int Page)
+    internal (IoTextBlock Text, IoToggleButton Button)? GetPageButton(int Page)
       => Page >= 0 ? ((dSButtons.TryGetValue("pageButton." + Page.ToString(), out var p) ? p : null)
           ?? throw new(F + "GetPageButton " + Page.ToString())) : null;
 }

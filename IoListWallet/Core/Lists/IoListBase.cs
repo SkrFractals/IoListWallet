@@ -32,11 +32,11 @@ internal abstract class IoListBase : IoUserControl {
     internal int MyIndex;
 
     protected List<Control> ToolbarList = [];
-    protected List<(TextBlock Text, IoToggleButton Button)?> toolButton = [];
+    protected List<(IoTextBlock Text, IoToggleButton Button)?> toolButton = [];
     protected (string Tooltip, string Text)[] Tools = [];
     internal uint pageSize = 10;
 
-    private (TextBlock Text, IoToggleButton Button)? filterSelect;
+    private (IoTextBlock Text, IoToggleButton Button)? filterSelect;
     private IoNumericLeftRight? pageSelect = null, pageSizeSelect = null;
     private Grid? page = null, prevPage = null, grid = null, tGrid = null;
     private WrapPanel? toolbar = null;
@@ -46,13 +46,11 @@ internal abstract class IoListBase : IoUserControl {
     internal event EventHandler<ClickToolEventArgs>? OnClickTool;
     internal event EventHandler<ClickButtonEventArgs>? OnClickButton;
 
-    internal (TextBlock Text, IoToggleButton Button)? GetFilterSelect => filterSelect;
+    internal (IoTextBlock Text, IoToggleButton Button)? GetFilterSelect => filterSelect;
 
     private const string F = "Failed IoListBase.";
-
+    internal void Delete() { Swipe.Delete(); MyFilter.Delete(); }
     internal IoListBase(IoPanel Owner, (string, string)[] Tools) {
-
-        
 
         this.Tools = Tools;
         this.Owner = Owner;
@@ -97,13 +95,18 @@ internal abstract class IoListBase : IoUserControl {
         
         listSize = new(Math.Max(listSize.Width, toolSize.Width), listSize.Height + toolSize.Height);
 
+        //plusW = filterSize.Width + listSize.Width,
+        //plusH = filterSize.Height + listSize.Height,
+        MyPopup.MinSplitWidth = 2 * Math.Max(filterSize.Width, listSize.Width);
+        MyPopup.MinSplitHeight = 2 * Math.Max(filterSize.Height, listSize.Height);
         double
-           //plusW = filterSize.Width + listSize.Width,
-           //plusH = filterSize.Height + listSize.Height,
-            plusW = 2*Math.Max(filterSize.Width, listSize.Width),
-            plusH = 2*Math.Max(filterSize.Height, listSize.Height),
-            shrinkW = plusW / available.Width,
-            shrinkH = plusH / available.Height;
+            shrinkW = MyPopup.MinSplitWidth / available.Width,
+            shrinkH = MyPopup.MinSplitHeight / available.Height;
+
+             
+
+            //var ver = Width / available.Width >= Height / available.Height;
+
 
         //MyPopup.ratioW = filterSize.Width / plusW;
         //MyPopup.ratioH = filterSize.Height / plusH;
@@ -111,11 +114,30 @@ internal abstract class IoListBase : IoUserControl {
         MyPopup.ratioW = .5;
         MyPopup.ratioH = .5;
 
-        return MinSize = shrinkW > shrinkH
-            ? new(Math.Max(filterSize.Width, listSize.Width) + 12, plusH)
-            : new(plusW + 12, Math.Max(filterSize.Height, listSize.Height));
+        if (shrinkW > shrinkH) {
+            if (MyPopup.Hor > 0) {
+                
+            }
+            //MyPopup.OpenHor = 0;
+            //MyPopup.OpenVer = 1;
+            return MinSize = new(Math.Max(filterSize.Width, listSize.Width) + 12, MyPopup.MinSplitHeight + 12);
+        } else {
+            //MyPopup.Hor = 1;
+            //MyPopup.Ver = 0;
+            return MinSize = new(MyPopup.MinSplitWidth + 12, Math.Max(filterSize.Height, listSize.Height) + 12);
+        }
+
+        //return MinSize = shrinkW > shrinkH
+        //    ? new(Math.Max(filterSize.Width, listSize.Width) + 12, plusH)
+        //    : new(plusW + 12, Math.Max(filterSize.Height, listSize.Height));
     }
-    protected virtual void Update(object? s, EventArgs e) => App.RefreshPanel(Owner, 1 << MyIndex, false);
+    protected virtual void Update(object? s, EventArgs e) {
+        var p = MyFilter.Filters?.PageSize ?? 10;
+        if (p != pageSize)
+            SetPageSize(p);
+        else
+            App.RefreshPanel(Owner, 1 << MyIndex, false);
+    }
     internal abstract bool RefreshData(CancellationToken? cancel, uint startIndex = 0, uint stopIndex = 0);
     protected virtual void MakeElements() { }
     //protected virtual UserControl MakeElement() => new();
@@ -206,7 +228,7 @@ internal abstract class IoListBase : IoUserControl {
             Second = Swipe;
         GridLength GridFirst = GridLength.Auto,
             GridSecond = GridLength.Star;
-        if (GetDisplayMode == DisplayMode.Fullscreen)
+        if (GetDisplayMode == IMode.Fullscreen)
             (First, Second, GridFirst, GridSecond)
                 = (Second, First, GridSecond, GridFirst);
         grid.RowDefinitions.Add(new RowDefinition(GridFirst));
@@ -247,13 +269,13 @@ internal abstract class IoListBase : IoUserControl {
         ToolbarList.Add(pageSelect);
 
         // page size select
-        void changePageSize(object? s, EventArgs e) {
+        /*void changePageSize(object? s, EventArgs e) {
             SetPageSize((uint?)pageSizeSelect?.Value ?? 10);
         }
         JustNumeric(ref pageSizeSelect, "T_PageLength", pageSize, 1, 100, 1, 1, "PageSize", false, App.L("PageSize") + ": ", "", changePageSize);
         if (pageSizeSelect == null)
             throw new(F + "pageSizeSelect");
-        ToolbarList.Add(pageSizeSelect);
+        ToolbarList.Add(pageSizeSelect);*/
 
         // custom tool tabs
         while (toolButton.Count < Tools.Length)
@@ -264,6 +286,10 @@ internal abstract class IoListBase : IoUserControl {
                 ?? throw new(F + "CustomTool");
             ToolbarList.Add(t.Value.Button);
         }
+    }
+    internal virtual void RefreshTemplate<IT>(IEnumerable<IT>? source, Func<object?, string[]> itemT, Func<object?, string[]> filterCommandT) {
+        ItemTemplate = itemT;
+        FilterCommandTemplate = filterCommandT;
     }
     internal virtual void OnSetupToolbar() { }
     internal void SetupPage() {
@@ -316,12 +342,11 @@ internal abstract class IoListBase : IoUserControl {
         ulong max = pageSize > 0 ? (Math.Max(1, (ulong)PageEntries.Count) - 1) / pageSize + 1 : 1;
         SetupToolbar(max, Swipe.Page.Y);
         SetupPage();
-        //Owner.UpdateMinSize();
     }
     internal virtual void ClickTool(object? s, EventArgs e) {
         OnClickTool?.Invoke(this, new ClickToolEventArgs() { FromList = MyIndex, Index = (int?)((Button?)s)?.Tag ?? -1 });
     }
-    internal virtual void ClickButton((TextBlock Text, Viewbox View, IoToggleButton Button)? e, int index) {
+    internal virtual void ClickButton((IoTextBlock Text, Viewbox View, IoToggleButton Button)? e, int index) {
         OnClickButton?.Invoke(this, new ClickButtonEventArgs() { FromList = MyIndex, ClickedButton = e, Index = index });
 
     }

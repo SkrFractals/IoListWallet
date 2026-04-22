@@ -78,25 +78,25 @@ internal static class ConstructionHelpers {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
         };
     }
-    internal static void JustTextBlock(ref TextBlock? inst, string tooltip, string text, FontWeight weight = FontWeight.Normal) {
+    internal static void JustTextBlock(ref IoTextBlock? inst, string tooltip, string text, FontWeight weight = FontWeight.Normal) {
         if (inst != null) {
             inst.Text = text;
             inst.FontWeight = weight;
         } else {
-            inst = new TextBlock {
+            inst = new IoTextBlock {
                 Text = text,
                 ClipToBounds = false,
                 FontWeight = weight,
                 TextAlignment = TextAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Effect = new DropShadowEffect {
+                HorizontalAlignment = HorizontalAlignment.Center
+                /*Effect = new DropShadowEffect {
                     Color = Colors.Black,
                     BlurRadius = 4,
                     Opacity = 1.0,
                     OffsetX = 2,
                     OffsetY = 2
-                }
+                }*/
             };
         }
         if (tooltip != "")
@@ -194,7 +194,7 @@ internal static class ConstructionHelpers {
         if (tooltip != "")
             SetTip(inst, L(tooltip));
     }
-    internal static void JustButton(ref (TextBlock Text, IoToggleButton Button)? inst, string tooltip, string text = "", EventHandler<RoutedEventArgs>? response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
+    internal static void JustButton(ref (IoTextBlock Text, IoToggleButton Button)? inst, string tooltip, string text = "", EventHandler<RoutedEventArgs>? response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
         var t = inst?.Text;
         JustTextBlock(ref t, "", text, weight);
         if (t == null)
@@ -283,7 +283,7 @@ internal static class ConstructionHelpers {
         } 
     }
     // areYouSure == "": the button will toggle, null: will reset to false and need to be set isChecked after, "XXX": will toggle to are you sure text, timeout back to normal, only clicking when checked will fire guraded clicked event
-    internal static void WrapButton(ref IoToggleButton? inst, TextBlock text, Control control, bool isChecked = false, EventHandler<RoutedEventArgs>? response = null, string? areYouSure = null, object? tag = null) {
+    internal static void WrapButton(ref IoToggleButton? inst, IoTextBlock text, Control control, bool isChecked = false, EventHandler<RoutedEventArgs>? response = null, string? areYouSure = null, object? tag = null) {
         if (inst != null) {
             inst.Trigger = false;
             inst.IsChecked = isChecked;
@@ -304,11 +304,35 @@ internal static class ConstructionHelpers {
                 IsChecked = isChecked,
                 Tag = tag,
                 Text = text.Text ?? ""
+                /*Effect = new DropShadowEffect {
+                    Color = Colors.Black,
+                    BlurRadius = 4,
+                    Opacity = 1.0,
+                    OffsetX = 2,
+                    OffsetY = 2
+                }*/
             });
         }
         inst.SetResponse(response);
     }
-    internal static void BigTextBlock(ref (TextBlock Text, Viewbox View)? inst, string tooltip, string text, FontWeight weight = FontWeight.Normal) {
+    internal static void WrapColorButton(ref IoColorButton? inst, Control control, Color isColor, EventHandler<ColorChangedEventArgs>? response) {
+        if (inst != null) {
+            inst.isColor = isColor;
+        } else {
+            HoldTip(inst = new IoColorButton() {
+                Content = control,
+                ClipToBounds = false,
+                //CornerRadius = "{Binding $self.ActualHeight}",
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                VerticalContentAlignment = VerticalAlignment.Stretch,
+                isColor = isColor
+            });
+        }
+        inst.SetResponse(response);
+    }
+    internal static void BigTextBlock(ref (IoTextBlock Text, Viewbox View)? inst, string tooltip, string text, FontWeight weight = FontWeight.Normal) {
         var t = inst?.Text;
         JustTextBlock(ref t, "", text, weight);
         if (t == null)
@@ -364,7 +388,7 @@ internal static class ConstructionHelpers {
             SetTip(b, L(tooltip));
         inst = (t, v, b);
     }
-    internal static void BigButton(ref (TextBlock Text, Viewbox View, IoToggleButton Button)? inst, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
+    internal static void BigButton(ref (IoTextBlock Text, Viewbox View, IoToggleButton Button)? inst, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
         var t = inst?.Text;
         JustTextBlock(ref t, "", text, weight);
         if (t == null)
@@ -381,7 +405,7 @@ internal static class ConstructionHelpers {
             SetTip(b, L(tooltip));
         inst = (t, v, b);
     }
-    internal static void BigColorPicker(ref (ColorPicker Color, TextBlock Text, Viewbox View, IoToggleButton Button)? inst, string tooltip, string text, Color isColor, EventHandler<ColorChangedEventArgs>? response = null) {
+    internal static void BigColorPicker(ref (IoTextBlock Text, Viewbox View, IoColorButton Button)? inst, string tooltip, string text, Color isColor, EventHandler<ColorChangedEventArgs>? response = null) {
         var t = inst?.Text;
         JustTextBlock(ref t, "", text, FontWeight.Normal);
         if (t == null)
@@ -391,19 +415,22 @@ internal static class ConstructionHelpers {
         if (v == null)
             return;
         var b = inst?.Button;
-        WrapButton(ref b, t, v, false, null, null, null);
+        WrapColorButton(ref b, v, isColor, response);
         if (b == null)
             return;
         if (tooltip != "")
             SetTip(b, L(tooltip));
 
-        var c = inst?.Color;
+        /*var c = inst?.Color;
         if (c == null) {
             c = new() { Color = isColor };
+
+
             c.ColorChanged += response;
             b.Flyout = new Flyout() { Content = c };
-        } else c.Color = isColor;
-        inst = (c, t, v, b);
+
+        } else c.Color = isColor;*/
+        inst = (t, v, b);
     }
     internal static void BigComboBox<T>(ref (IoComboBox Combo, Viewbox View)? inst, string tooltip, IEnumerable<T>? itemSource, T? selectedItem, IDataTemplate? itemTemplate = null, EventHandler<EventArgs>? response = null, bool bitmask = false, string classes = "") {
         var c = inst?.Combo;
@@ -434,11 +461,24 @@ internal static class ConstructionHelpers {
     internal static IBrush MakeLeftShade() => new LinearGradientBrush {
         StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
         EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-        GradientStops =
-   {
+        GradientStops = {
             new GradientStop(Color.FromArgb(128,0,0,0), 0.0),
-            new GradientStop(Color.FromArgb(0,0,0,0), 1.0)
-    }
+            new GradientStop(Color.FromArgb(0,0,0,0), 1.0) }};
+
+    internal static IBrush MakeRightShade() => new LinearGradientBrush {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
+        GradientStops = {
+            new GradientStop(Color.FromArgb(0,0,0,0), 0.0),
+            new GradientStop(Color.FromArgb(128,0,0,0), 1.0) }
+    };
+
+    internal static IBrush MakeBottomShade() => new LinearGradientBrush {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+        GradientStops = {
+            new GradientStop(Color.FromArgb(0,0,0,0), 0.0),
+            new GradientStop(Color.FromArgb(128,0,0,0), 1.0) }
     };
 
 

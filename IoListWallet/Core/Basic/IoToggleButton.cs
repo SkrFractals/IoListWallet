@@ -17,7 +17,7 @@ internal class IoToggleButton : ToggleButton {
     internal string Text = "";
 
     private ulong processID = 1;
-    private TextBlock myText;
+    private IoTextBlock myText;
 
 
     private EventHandler<RoutedEventArgs>? response = null;
@@ -35,7 +35,7 @@ internal class IoToggleButton : ToggleButton {
     //internal bool Enabled { get => IsEnabled; set { Cursor = new Cursor((IsEnabled = value) ? StandardCursorType.Hand : StandardCursorType.No); } }
 
 
-    internal IoToggleButton(TextBlock myText) : base() {
+    internal IoToggleButton(IoTextBlock myText) : base() {
         Cursor = new Cursor(StandardCursorType.Hand);
         //Classes.Add(":togglebutton");
         this.myText = myText;

@@ -24,6 +24,7 @@ internal class IoFilter {
     [Save] internal bool Increasing { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } }
     [Save] internal bool Increasing2 { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } }
     [Save] internal byte Size { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 1;
+    [Save] internal uint PageSize { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 10;
     internal void SetSize(byte size) {
         Size = size;
         foreach (var f in Filters)

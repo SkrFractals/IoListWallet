@@ -41,7 +41,7 @@ internal class IoSegmentedTextBox : UserControl {
         middle.Text = t.Substring(MinFirst, t.Length - MinFirst - MinLast);
         last.Text = t[^MinLast..];
         int col = 0, ranChars = 0;
-        void ApplyColorPattern(TextBlock block, string text) {
+        void ApplyColorPattern(IoTextBlock block, string text) {
             if (block.Inlines == null)
                 return;
             block.Inlines.Clear();
@@ -56,7 +56,7 @@ internal class IoSegmentedTextBox : UserControl {
                 ranChars += e - i;
             }
         }
-        void AddCol(TextBlock T, GridLength L) {
+        void AddCol(IoTextBlock T, GridLength L) {
             if (T.Text == "")
                 return;
             ApplyColorPattern(T, T.Text ?? "");

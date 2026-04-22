@@ -4,59 +4,54 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using IoListWallet.Core.Panels;
+using IoListWallet.Core.Static;
 using System;
-using System.Collections.Generic;
-using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.Core;
+namespace IoListWallet.Core.Dock;
 
-internal abstract class IoDock {
-    internal Control? MyBuild = null;
-    internal IoDock? Parent = null; // Loading should fill it it as it goes
-    internal Size MinSize = new(120, 120), MySize = new(120, 120);
-    internal abstract void RefreshMinSize(bool shrink = false); // called from below to bubble up into the root (TODO When a panel changes min size, it should call this on it's dock)
-    internal abstract void SanitizeRatios(Size Available); // adjust any ratios that are out of bounds (window should call this on resize)
-    internal abstract Control Build(bool refresh = false, bool relink = false); // TODO when undock removes anything, it should release from it's grid's Children! Also SetRow and column to 0,0!
-    internal abstract void UnBuild(bool recursive = true);
-    internal abstract protected void PropagateColor(Color c);
-}
-internal class IoDockPanels : IoDock {
-    [Save] internal List<string> Panel { get; set { field = value; IoPanel.Dirty(); } } = []; // Panel KeyId
-    [Save] internal int Selected { get; set { field = value; IoPanel.Dirty(); } } = 0; // Which one is selected
-    internal override void RefreshMinSize(bool shrink = false) {
-        MinSize = new(120, 120);
-        foreach (var p in Panel)
-            if (FromK(p) is IoPanel ip)
-                MinSize = new(Math.Max(MinSize.Width, ip.MinSize.Width), Math.Max(MinSize.Height, ip.MinSize.Height));
-        Parent?.RefreshMinSize(shrink);
-    }
-    internal override void SanitizeRatios(Size Available) => MySize = Available;
-    internal override Control Build(bool refresh = false, bool relink = false) {
-        if (Panel.Count > Selected && FromK(Panel[Selected]) is IoPanel c) {
-            if (relink)
-                c.ParentDock = this;    
-            if (refresh)
-                c.RefreshTitleBar();
-            return MyBuild = c;
-        }
-        return MyBuild = new Panel();
-    }
-    internal override void UnBuild(bool recursive = true) => MyBuild = null;
-    internal override protected void PropagateColor(Color c) { }
-}
 internal class IoDockSplit : IoDock {
     //private PointerPoint? capture;
     private Grid g;
     private double offset = 0;
-    private readonly Panel split = new() {
+    private readonly Grid split = new() {
         Background = new SolidColorBrush(Colors.Black),
         HorizontalAlignment = HorizontalAlignment.Stretch,
         VerticalAlignment = VerticalAlignment.Stretch
     };
+    Border squareLeft = new() {
+        Child = new TextBlock() { Text = ""},
+        Background = ConstructionHelpers.MakeLeftShade(),
+        VerticalAlignment = VerticalAlignment.Stretch,
+        HorizontalAlignment = HorizontalAlignment.Left,
+        MinWidth = 20,
+        IsHitTestVisible = false
+    };
+    Border squareRight = new() {
+        Child = new TextBlock() { Text = "" },
+        Background = ConstructionHelpers.MakeRightShade(),
+        VerticalAlignment = VerticalAlignment.Stretch,
+        HorizontalAlignment = HorizontalAlignment.Right,
+        MinWidth = 20,
+        IsHitTestVisible = false
+    };
+    Border squareBottom = new() {
+        Child = new TextBlock() { Text = "            " },
+        Background = ConstructionHelpers.MakeBottomShade(),
+        VerticalAlignment = VerticalAlignment.Stretch,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        MinHeight = 20,
+        IsHitTestVisible = false
+    };
+
     private double splitterSize { get => GetProfile?.DockSplitterWidth ?? DPro.DockSplitterWidth; } // Area between the docks that you could drag, TODO make it a PRO save property
     private Point bounds = new(.5, .5);
     public IoDockSplit() {
+        split.Children.Add(squareLeft);
+        split.Children.Add(squareRight);
+        split.Children.Add(squareBottom);
+        Grid.SetRow(squareBottom, 1);
+        Grid.SetColumn(squareRight, 2);
         split.PointerPressed += OnSplitterPressed;
         split.PointerMoved += OnSplitterMoved;
         split.PointerReleased += OnSplitterReleased;
@@ -68,9 +63,18 @@ internal class IoDockSplit : IoDock {
     [Save] // Only ever call this once!
     internal Orientation Orientation {
         get; set {
-            split.Cursor = new((field = value) == Orientation.Vertical
-                ? StandardCursorType.SizeNorthSouth
-                : StandardCursorType.SizeWestEast);
+            split.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            //split.RowDefinitions = [new RowDefinition(GridLength.Auto)];
+            split.ColumnDefinitions = [new ColumnDefinition(GridLength.Auto)];
+            if ((field = value) == Orientation.Vertical) {
+                split.Cursor = new(StandardCursorType.SizeNorthSouth);
+                split.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+                split.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+            } else {
+                split.Cursor = new(StandardCursorType.SizeWestEast);
+                //split.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+                split.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            }
             Reratio();
             IoPanel.Dirty();
         }
@@ -94,13 +98,11 @@ internal class IoDockSplit : IoDock {
         bounds = new((F + halfSlider) / A, 1 - (S + halfSlider) / A);
 
         if (bounds.X > bounds.Y) {
-            /*MinSize = MySize = Orientation == Orientation.Vertical
-                ? new(12+Math.Max(First.MinSize.Width,Second.MinSize.Width),12+First.MinSize.Height+Second.MinSize.Height+ splitterSize)
-                : new(12+First.MinSize.Width + Second.MinSize.Width + splitterSize, 12+Math.Max(First.MinSize.Height, Second.MinSize.Height));*/
             RefreshMinSize(false);
-
             return;
         }
+        MySize = Available;
+        //MySize = new(Math.Max(MinSize.Width, MySize.Width), Math.Max(MinSize.Height, MySize.Height));
 
         SetRatio(SplitRatio);
         if (Orientation == Orientation.Vertical) {
@@ -138,14 +140,13 @@ internal class IoDockSplit : IoDock {
             gc.RemoveAt(gc.Count - 1);
     }
 
-
     private void Reratio() {
         Grid g = (Grid)(MyBuild ??= new Grid());
         var halfSlider = splitterSize / 2;
         var s = Orientation == Orientation.Vertical ? MySize.Height : MySize.Width;
         GridLength[] n = [new GridLength(s * SplitRatio - halfSlider, GridUnitType.Star),
-                new GridLength(splitterSize),
-                new GridLength(s * (1 - SplitRatio) - halfSlider, GridUnitType.Star)];
+            new GridLength(splitterSize),
+            new GridLength(s * (1 - SplitRatio) - halfSlider, GridUnitType.Star)];
         if (Orientation == Orientation.Vertical)
             SetRowH(g, n);
         else
@@ -162,11 +163,14 @@ internal class IoDockSplit : IoDock {
             g.Children.Add(second);
         } else g.Children[2] = second;
     }
-    internal override Control Build(bool refresh = false, bool relink = false) {
+    protected internal override Control _Build(bool refresh, bool relink, bool left, bool right, bool bottom) {
         Reratio();
         Grid g = (Grid)(MyBuild ??= new Grid());
-        var first = First.Build(refresh, relink);
-        var second = Second.Build(refresh, relink);
+        var first = First._Build(refresh, relink, left, 
+            squareRight.IsVisible = right && Orientation == Orientation.Vertical, 
+            squareBottom.IsVisible = bottom && Orientation == Orientation.Horizontal);
+        var second = Second._Build(refresh, relink, 
+            squareLeft.IsVisible = left && Orientation == Orientation.Vertical, right, bottom);
         LinkGrid(g, first, second);
         Grid.SetRow(first, 0);
         Grid.SetColumn(first, 0);
@@ -215,47 +219,4 @@ internal class IoDockSplit : IoDock {
         First.PropagateColor(c);
         Second.PropagateColor(c);
     }
-}
-internal class IoDockRoot : IoDock {
-    internal IoMainPanel? Panel = null; // Main Panel hosting all the IoPanels
-    [Save] internal IoDock TopNonRoot { get; set { field = value; IoPanel.Dirty(); } } = new IoDockPanels(); // Root node holding the first IoPanel, or a split
-    [Save] internal string Original { get; set { field = value; IoPanel.Dirty(); } } = ""; // Original single panel that this dock was spawned with
-    internal IoDockRoot SetupParents() => (IoDockRoot)(_SetupParents(TopNonRoot).Parent = this);
-    private IoDock _SetupParents(IoDock d) {
-        if (d is IoDockSplit s) {
-            _SetupParents(s.First).Parent = s;
-            _SetupParents(s.Second).Parent = s;
-        }
-        return d;
-    }
-    internal override void RefreshMinSize(bool shrink = false) {
-        MinSize = TopNonRoot is IoDockSplit  // = Child_TopNonRoot( + WindowToolbar( = controlfont + padding) if docked)
-            ? new(TopNonRoot.MinSize.Width, TopNonRoot.MinSize.Height + (GetProfile?.ControlFontSize ?? DPro.ControlFontSize) + 8)
-            : TopNonRoot.MinSize;
-        if (TryWindow(Panel?.MyWindowK ?? -1) is IoWindow window) { // Upsize my window if overflown
-            window.SetMinSize(MinSize + new Size(24,24));
-            if (shrink) {
-                window.SetSize(MinSize);
-                SanitizeRatios(MinSize);
-                return;
-            }
-            // ws = window.GetSize();
-            SanitizeRatios(new(Math.Max(MinSize.Width, window.Width), Math.Max(MinSize.Height, window.Height)));
-        }
-    }
-    internal override void SanitizeRatios(Size Available)
-        => TopNonRoot.SanitizeRatios(Available);
-    internal override Control Build(bool refresh = false, bool relink = false) {
-        SetColor();
-        return MyBuild = TopNonRoot.Build(refresh, relink);
-    }
-    internal override void UnBuild(bool recursive = true) {
-        MyBuild = null;
-        if (recursive) TopNonRoot.UnBuild(recursive);
-    }
-    internal void SetColor() {
-        Color c = FromK(Original)?.TitleColor ?? DPro.TitleColor;
-        TopNonRoot.PropagateColor(c);
-    }
-    protected internal override void PropagateColor(Color c) { }
 }

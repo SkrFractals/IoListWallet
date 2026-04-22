@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace IoListWallet.Core.Obsolete;
 
-internal class UtxoListControl : UserControl
+/*internal class UtxoListControl : UserControl
 {
     internal UtxoListControl(List<IoTxo> list)
     {
@@ -21,4 +21,4 @@ internal class UtxoListControl : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
     }
-}
+}*/

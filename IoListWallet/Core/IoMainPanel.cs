@@ -1,5 +1,8 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using IoListWallet.Core.Basic;
+using IoListWallet.Core.Dock;
 using IoListWallet.Core.Panels;
 using IoListWallet.Core.Static;
 using static IoListWallet.App;
@@ -19,7 +22,7 @@ internal class IoMainPanel : IoUserControl {
     internal ContentControl DockHost { get; private set; }
     internal ContentControl Titlebar { get; private set; }
     internal Grid OverlayGrid { get; private set; }
-    internal (TextBlock Text, Viewbox View)? OverlayX { get; set; }
+    internal (IoTextBlock Text, Viewbox View)? OverlayX { get; set; }
     private Grid grid;
     internal bool shrinkRefresh = false;
     public IoMainPanel() {
@@ -47,11 +50,12 @@ internal class IoMainPanel : IoUserControl {
         grid.Children.Add(OverlayGrid);
 
         Content = new RotationHost { Child = grid };
+
     }
     internal void RefreshDock() => DockHost.Content = Dock.Build();
     
-    internal bool Update(bool total = false) {
-        var mw = AppSave.GetDisplayMode == AppSave.DisplayMode.MultiWindow;
+    internal bool Update() {
+        var mw = AppSave.GetDisplayMode == AppSave.IMode.MultiWindow;
 
         Grid.SetRow(DockHost, mw ? 1 : 0);
         Grid.SetRow(Titlebar, mw ? 0 : 1);
@@ -67,8 +71,7 @@ internal class IoMainPanel : IoUserControl {
             c.Content = null;
         Titlebar.Content = myPanel.Titlebar;
         DockHost.Content = null;
-        Dock.Build();
-        DockHost.Content = Dock.MyBuild;
+        RefreshDock();
         return true;
     }
 }

@@ -1,24 +1,24 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
-using IoListWallet.Core.Panels;
-using IoListWallet.Core.Static;
+using IoListWallet.Core.Dock;
 using System;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Core;
 internal class IoWindow : Window {
+    internal static void Dirty() => GetProfile?.Win.Dirty = true; // Somethign was edited in me - dirty the panel.json save file for saving
     [Save]
-    internal IoMainPanel MyMainPanel { get; set { field = value; IoPanel.Dirty(); } }
+    internal IoMainPanel MyMainPanel { get; set { field = value; Dirty(); } }
+    
+    [Save] 
+    internal int OpenedFrom { get; set { Owner = TryWindow(field = value); Dirty(); } } = -1;
     [Save]
-    internal int Index { get; set { field = value; IoPanel.Dirty(); } } = 0;
-    [Save] internal int OpenedFrom { get; set { Owner = TryWindow(field = value); IoPanel.Dirty(); } } = -1;
+    internal double MyWidth { get; set { Width = field = value; Dirty(); } } = 120;
     [Save]
-    internal double MyWidth { get; set { Width = field = value; IoPanel.Dirty(); } } = 120;
+    internal double MyHeight { get; set { Height = field = value; Dirty(); } } = 120;
     [Save]
-    internal double MyHeight { get; set { Height = field = value; IoPanel.Dirty(); } } = 120;
-
+    internal PixelPoint MyPosition { get; set { Position = field = value; Dirty(); } }
     /*[Save] internal bool WindowVisible { get; set { 
             if (field = value) {
                 if (IsWindow(OpenedFrom, out var o)) 
@@ -29,6 +29,8 @@ internal class IoWindow : Window {
                 Hide(); 
             IoPanel.Dirty(); 
         } } = true;*/
+    //[Save]
+    internal int Index;// { get; set { field = value; IoPanel.Dirty(); } } = 0;
     internal bool IsClosing = false, isDragging = false, isDockDragging = false;
 
     //private bool _dragging;
@@ -47,6 +49,10 @@ internal class IoWindow : Window {
         }
         MinWidth = n.Width;
         MinHeight = n.Height;
+        if (Height < MinHeight)
+            Height = MinHeight;
+        if (Width < MinWidth)
+            Width = MinWidth;
     }
     public void SetSize(Size n) {
         if (((GetProfile?.DisplayRotation ?? DPro.DisplayRotation) & 1) == 1) {
@@ -60,21 +66,17 @@ internal class IoWindow : Window {
     public Size GetMinSize() =>((GetProfile?.DisplayRotation ?? DPro.DisplayRotation) & 1) == 1 ? new(MinHeight, MinWidth) : new(MinWidth, MinHeight);
     public Size GetSize() => ((GetProfile?.DisplayRotation ?? DPro.DisplayRotation) & 1) == 1 ? new(Height, Width) : new(Width, Height);
 
-    bool _clamping = false;
+    private bool DoNotClamp = false;
     void ClampToScreen(object? s, SizeChangedEventArgs e) {
-        if (_clamping) 
+        if (DoNotClamp) 
             return;
-        _clamping = true;
+        DoNotClamp = true;
         var screen = Screens.ScreenFromWindow(this)?.WorkingArea
                      ?? Screens.Primary?.WorkingArea;
         if (screen == null)
             return;
         int x = Position.X;
         int y = Position.Y;
-        //double w = Width;
-        //double h = Height;
-        //if (double.IsNaN(w) || double.IsNaN(h))
-        //   return;
 
         var pSize = e.PreviousSize;
         var nSize = e.NewSize;
@@ -100,30 +102,32 @@ internal class IoWindow : Window {
         Position = new PixelPoint(x, y);
         Width = pSize.Width > nSize.Width ? Math.Max(nSize.Width, MinWidth) : Math.Max(pSize.Width, Math.Max(w, MinWidth));
         Height = pSize.Height > nSize.Height ? Math.Max(nSize.Height, MinHeight) : Math.Max(pSize.Height, Math.Max(h, MinHeight));
-        _clamping = false;
+        DoNotClamp = false;
     }
 
     public IoWindow() {
-
-        //this.GetObservable(ClientSizeProperty).Subscribe(_ => ClampToScreen());
-        //this.PositionChanged += (_, __) => ClampToScreen();
-
+        if (GetDisplayMode == IMode.MultiWindow) {
+            ExtendClientAreaToDecorationsHint = true;
+            ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome;
+        } else {
+            ExtendClientAreaToDecorationsHint = false;
+            ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.Default;
+        }
+        Width = Height = 120;
         SizeChanged += ClampToScreen;
-
-        SystemDecorations = GetDisplayMode == DisplayMode.MultiWindow 
+        SystemDecorations = GetDisplayMode == IMode.MultiWindow 
             ? SystemDecorations.BorderOnly : SystemDecorations.Full;
         SetMinSize(new(120, 120));
-        for (Index = 0; GetProfile?.Pan.OpenedWindows.ContainsKey(Index) ?? false; ++Index) ;
-        GetProfile?.Pan.OpenedWindows[Index] = this;
+        for (Index = 0; GetProfile?.Win.OpenedWindows.ContainsKey(Index) ?? false; ++Index) ;
+        GetProfile?.Win.OpenedWindows[Index] = this;
         MyMainPanel = new() { MyWindowK = Index };
-       
         Content = MyMainPanel;
         Closing += IoWindow_Closing;
     }
 
     internal void DragStarted() {
         isDragging = true;
-        if (GetDisplayMode != DisplayMode.MultiWindow || MyMainPanel == AppMainPanel || (FromK(MyMainPanel.Dock.Original)?.IsModal() ?? true))
+        if (GetDisplayMode != IMode.MultiWindow || MyMainPanel == AppMainPanel || (FromK(MyMainPanel.Dock.Original)?.IsModal() ?? true))
             return;
         MyMainPanel.OverlayGrid.IsVisible = isDockDragging = true;
         Opacity = 0.25f;
@@ -135,19 +139,30 @@ internal class IoWindow : Window {
         Opacity = 1.0f;
     }
     internal void DoubleTap() {
-        if (GetDisplayMode != DisplayMode.MultiWindow)
+        if (GetDisplayMode != IMode.MultiWindow)
             return;
-       
-        WindowState = WindowState == WindowState.Normal ? WindowState.Maximized : WindowState.Normal;
+        Maximize();
         DragEnded();
+    }
+    internal void Maximize() {
+        DoNotClamp = true;
+        if (WindowState == WindowState.Normal) {
+            ExtendClientAreaToDecorationsHint = false;
+            WindowState = WindowState.Maximized;
+        } else {
+            ExtendClientAreaToDecorationsHint = GetDisplayMode == IMode.MultiWindow;
+            WindowState = WindowState.Normal;
+        }
+        DoNotClamp = false;
+        FromK(MyMainPanel.Dock.Original)?.UpdateMax();
     }
 
     private void IoWindow_Closing(object? sender, WindowClosingEventArgs e) {
         MyMainPanel.DockHost.Content = null;
-        if (IsClosing || !App.appRunning)
+        if (IsClosing || !App.AppRunning)
             return;
-        GetProfile?.Pan.OpenedWindows.Remove(Index);
-        bool MainClose = MyMainPanel.Dock == AppDockRoot;
+        GetProfile?.Win.OpenedWindows.Remove(Index);
+        bool MainClose = MyMainPanel.Dock == AppDockRoot && !App.CanCloseMain;
         IsClosing = true;
         if (MainClose)
             AppClose();

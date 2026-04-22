@@ -9,61 +9,47 @@ using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.IoPanels.Network;
 internal class NetworkSelect : IoListPanel {
+    private bool initNetwork = true;
     public NetworkSelect() : base() {
-        (MyList[0] = new IoListButtons<Type>(this, [("T_AddNetwork", L("AddNetwork"))]) { MyIndex = 0 })
-            .MyFilter.Filters = new IoFilter() {
+        MakeList<Type>(new IoFilter() {
             Filters = [ // Search Formats:
                 new FilterText() { Name = "Blockchain" }, // Blockchain 
                 new FilterText() { Name = "Network" } // Network 
                 // TODO add filters: Staking, Smart...
             ], SortIndex = 0, SortIndex2 = 1, Increasing = true, Increasing2 = true
-        };
-        MyList[0].Selected = IsSelected;
-        //MyContent.Content = MyList[0].Content;
+        }, [("T_AddNetwork", L("AddNetwork"))], // Toolbar: 0 = Add Network
+        2, // Columns: 0 = Select Network, 1 = Edit Network
+        -1, 0, null, null, IsSelected);
     }
     internal override string TrueParentType => MakeK(typeof(MainMenu), "");
-    protected override bool CloseOnClick(int fromList) => false;
-
     internal override IoPanel OnOpen(bool initial = false) {
-        if (GetNetworks?.Count <= 0)
+        var r = base.OnOpen(initial);
+        if (GetNetworks?.Count <= 0 && initNetwork) {
+            initNetwork = false;
             OpenRefreshPanel(this, typeof(NetworkAdd));
-        return base.OnOpen(initial);
-    }
-
-    /*internal override bool OnResponse(IoPanel From, object Data) {
-        if (base.OnResponse(From, Data))
-            return true;
-        if (From is ListNetworkAdd) { // Deeper NetworkAdd selected something and is letting me know:
-            AppMainMenu?.OnResponse(this, 0);
-            Close();
-            return true;
         }
-        return false;
-    }*/
+        return r;
+    }
     internal override void RefreshData(int job, CancellationToken? token) {
-       
-        if (MyList[0] is not IoListButtons<Type> list)
-            return;
-        list.Columns = 2; // 0 = Select Network, 1 = Edit Network
-        list.ItemSource = GetNetworks?.Keys;
-        list.ItemTemplate = (o) => [ // Columns:
+        MyList[0].RefreshTemplate(
+            GetNetworks?.Keys,
+            (o) => [ // Columns:
                 "T_SelectNetwork", IsNetwork((Type?)o, out var n) && n != null ? L(n.Blockchain) + " - " + L(n.GetNetwork()) : "", // Select Network
                 "T_EditNetwork", L("EditNetwork") // Edit Network
-                ];
-        list.FilterCommandTemplate = (o) => IsNetwork((Type?)o, out var n) && n != null ? [ // Search Data:
+            ], 
+            (o) => IsNetwork((Type?)o, out var n) && n != null ? [ // Search Data:
                 L(n.Blockchain), // Blockchain
                 L(n.GetNetwork()) // Network
                 //((int)N.Smart).ToString(), // Smart
                 //((int)N.Staking).ToString() // Staking
-                ] : [];
-        
+            ] : []);
         base.RefreshData(job, token);
     }
-    protected bool IsSelected(object? o) => GetProfile?.Network is Type t && o is Type t2 && t == t2;
     protected override Type? Selected(int fromList) => GetProfile?.Network;
+    protected override bool CloseOnDoubleClick(int fromList) => true;
     protected override void PerformSelect(int fromList, object? o) {
         LoadNetwork((Type?)o);
-        RefreshPanel(this, 1 << MyList[fromList].MyIndex, true);
+        RefreshPanel(this, 1 << MyList[fromList].MyIndex, initNetwork = true);
     }
     protected override void OnClickButton(object? sender, ClickButtonEventArgs e) { 
         switch (e.Index) {
@@ -80,8 +66,6 @@ internal class NetworkSelect : IoListPanel {
                 
                 var editPanel = OpenRefreshPanel(this, typeof(NetworkContent), netId.Name/*n.Blockchain + " - " + n.GetNetwork()*/) as NetworkContent 
                     ?? throw new("Failed ListNetworkSelect.editPanel");
-                //editPanel.MyNetwork = netId;
-                //RefreshPanel(editPanel, -1, true);
                 break;
         }
     }
@@ -92,4 +76,5 @@ internal class NetworkSelect : IoListPanel {
                 break;
         }
     }
+    protected bool IsSelected(object? o) => GetProfile?.Network is Type t && o is Type t2 && t == t2;
 }

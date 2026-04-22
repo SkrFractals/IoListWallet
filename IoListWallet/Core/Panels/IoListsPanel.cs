@@ -122,27 +122,15 @@ internal abstract class IoListsPanel : IoBookPanel {
         Page = p;
         PageSize = ps;
     }
-    /*internal override void Restore() {
-        MyList.MyFilter.Filters = MyFilter;
-        MyList.Swipe.Page.Y = Page;
-        MyList.pageSize = PageSize;
-    }*/
     #endregion
 
     protected IoListBase[] MyList;
 
     internal override void Init(Size available) {
-        
         foreach (var item in MyList) {
             item.OnClickTool += OnClickTool;
             item.OnClickButton += OnClickButton;
-            //item.Skip = SkipEntries;
-            //item.Disable = DisableEntries;
             item.MyFilter.PrepareLayout(available);
-            //item.PrepareLayout(available);
-
-            //item.Swipe.OnMove += (_, _) => { if (Book.Swipe.IsDragging) Book.Swipe.CancelDrag(); };
-
         }
         base.Init(available);
     }
@@ -162,15 +150,22 @@ internal abstract class IoListsPanel : IoBookPanel {
         //Snapshot(); // TODO only if autosaving
     }
     internal override Size PrepareLayout(Size available) {
-        Size maxSize = new(120, 120);
-        foreach (var item in MyList) 
-            item.PrepareLayout(available);
+        //Size maxSize = new(120, 120);
+        foreach (var item in MyList) { 
+            //var s = 
+                item.PrepareLayout(available);
+            //maxSize = new(Math.Max(s.Width,maxSize.Width), Math.Max(s.Height,maxSize.Height));
+        }
         var bookSize = Book.PrepareLayout(available);
         //maxSize = new(Math.Max(bookSize.Width, maxSize.Width), Math.Max(bookSize.Width, maxSize.Width));
-        var toolSize = base.PrepareLayout(available);
-        return MinSize = new(Math.Max(maxSize.Width, toolSize.Width), maxSize.Height + toolSize.Height);
+        //var toolSize = base.PrepareLayout(available);
+        return MinSize = base.PrepareLayout(available);//new(Math.Max(maxSize.Width, toolSize.Width), maxSize.Height + toolSize.Height);
     }
-
+    internal override void Delete(bool refresh = true) {
+        base.Delete(refresh);
+        foreach (var l in MyList) 
+            l.Delete();
+    }
     internal override void RefreshData(int job, CancellationToken? cancel) {
         foreach (var item in MyList)
             if (((1 << item.MyIndex) & job) > 0)

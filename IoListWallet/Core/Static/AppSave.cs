@@ -16,10 +16,11 @@ using System.Text.Json.Nodes;
 using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Media;
+using IoListWallet.Core.Dock;
+using Avalonia.Media.Imaging;
+using IoListWallet.IoPanels.Profile;
 
 namespace IoListWallet.Core.Static;
-
-
 public class RotationHost : Decorator {
     public void Set(object? s, EventArgs e) {
         RenderTransform = new RotateTransform() { Angle = (AppSave.GetProfile?.DisplayRotation ?? 0) * 90 };
@@ -85,7 +86,7 @@ internal static class AppSave {
     internal static event EventHandler<EventArgs>? RotationHosts;
 
     #region Enums
-    internal enum DisplayMode {
+    internal enum IMode {
         Fullscreen,
         MultiWindow,
         SingleWindow
@@ -126,10 +127,13 @@ internal static class AppSave {
     internal static Dictionary<string, string> SubLocaleNames = [];
     internal static Dictionary<string, Dictionary<string, string>> SubLocaleData = [];
     internal static Dictionary<string, string> SubLocale = [];
-    internal static MainMenu? AppMainMenu; // the main menu IoPanel
-    internal static IoWindow? AppMainWindow; // the original window, where main menu is (if desktop)
-    internal static IoMainPanel? AppMainPanel; // the original docking panel where the main menu is
-    internal static IoDockRoot? AppDockRoot; // the dock of the AppMainPanel
+    internal static MainMenu? AppMainMenu = null; // the main menu IoPanel
+    internal static IoWindow? AppMainWindow = null; // the original window, where main menu is (if desktop)
+    internal static IoMainPanel? AppMainPanel = null; // the original docking panel where the main menu is
+    internal static ContentControl? AppFakePanel = null;
+    internal static IoDockRoot? AppDockRoot = null; // the dock of the AppMainPanel
+    internal static Window? DesktopFullscreen = null; // Fullscreen window on desktop mode
+    internal static Window? FakeWindow = null; // Fullscreen window on desktop mode
     //Dictionary<string, (int, int)> LastWindowSize; // The last windows size the user did to that Panel type.
     #endregion
 
@@ -143,9 +147,8 @@ internal static class AppSave {
     internal static IoProfile? GetProfile => SApp.GetProfile;
     internal static IoProfile? TryProfile(int profileId) => GetProfiles.TryGetValue(profileId, out var profile) ? profile : null;
     internal static bool IsProfile(int profileId, out IoProfile? profile) => (profile = TryProfile(profileId)) != null;
-    internal static IoWindow? TryWindow(int index) => (GetProfile?.Pan.OpenedWindows.TryGetValue(index, out var window) ?? false) ? window : null;
-
-    internal static IoWindow? GetWindow(int index) => (GetProfile?.Pan.OpenedWindows.TryGetValue(index, out var window) ?? false) ? window : new IoWindow();
+    internal static IoWindow? TryWindow(int index) => (GetProfile?.Win.OpenedWindows.TryGetValue(index, out var window) ?? false) ? window : null;
+    internal static IoWindow? GetWindow(int index) => (GetProfile?.Win.OpenedWindows.TryGetValue(index, out var window) ?? false) ? window : new IoWindow();
     internal static bool IsWindow(int index, out IoWindow? window) => (window = TryWindow(index)) != null;
     internal static Dictionary<Type, IoNetwork>? GetNetworks => GetProfile?.Networks ?? null;
     internal static IoNetwork? GetNetwork => SApp.GetNetwork;
@@ -163,7 +166,7 @@ internal static class AppSave {
     internal static bool IsTransaction(string txId, out IoTransaction? tx) => (tx = TryTransaction(txId)) != null;
     internal static IoTxo? TryTxo((string TxId, int Vout) txoId) => (GetNetwork?.Txo.TryGetValue(txoId, out var tx) ?? false) ? tx : null;
     internal static bool IsTxo((string TxId, int Vout) txoId, out IoTxo? txo) => (txo = TryTxo(txoId)) != null;
-    internal static DisplayMode GetDisplayMode => (GetProfile?.DisplayMode ?? DPro.DisplayMode);
+    internal static IMode GetDisplayMode => GetProfile?.InterfaceMode ?? DPro.InterfaceMode ?? IMode.Fullscreen;
     #endregion
 
     #region Directories
@@ -179,6 +182,10 @@ internal static class AppSave {
     internal static string GetNetworkDir(Type? network) => Path.Combine(GetProfileDir(), network?.Name ?? "-1");
     internal static string GetWalletDir() => Path.Combine(GetNetworkDir(), SApp.GetNetwork?.Wallet.ToString() ?? "-1");
     internal static string GetWalletDir(int walId) => Path.Combine(GetNetworkDir(), walId.ToString() ?? "-1");
+    internal static object? GetFirst(IEnumerable<object> e) {
+        var enumerator = e.GetEnumerator();
+        return enumerator.MoveNext() ? enumerator.Current : null;
+    }
     #endregion
 
     #region Load Calls
@@ -213,10 +220,6 @@ internal static class AppSave {
         }
         return ReadFile(pathf, profile.Password) is string s ? s == "password" : false;
     }
-    internal static object? GetFirst(IEnumerable<object> e) {
-        var enumerator = e.GetEnumerator();
-        return enumerator.MoveNext() ? enumerator.Current : null;
-    }
     /// <summary>
     /// Loads a profile and optionally everything with it
     /// </summary>
@@ -236,7 +239,7 @@ internal static class AppSave {
         // if already have a profile...
         if ((IsProfile(profileId, out var p) ? SavePro(p, profileId) // ...save it and try reloading it's unloaded children (also saves if they already loaded too)
             : File.Exists(pathf) ? DeserializeObject(typeof(IoProfile), File.ReadAllText(pathf)) // actually load it
-            : SavePro(new IoProfile(), profileId) // Doesn't exist -> create it
+            : SavePro(new IoProfile() { InterfaceMode = DPro.InterfaceMode }, profileId) // Doesn't exist -> create it
         ) is IoProfile profile) {
             (SApp.Profiles[profileId] = profile).Dirty = false; // Mark synced, and link directories
             if (batch && profileId != SApp.Profile)
@@ -244,32 +247,28 @@ internal static class AppSave {
             // Load Locale:
             if (LocaleData.Count == 0)
                 throw new("No Locales found!");
-            Locale = LocaleData.TryGetValue(profile.Locale, out var found)
-                ? found : LocaleData[profile.Locale = (string?)GetFirst(LocaleData.Keys) ?? ""];
-            SubLocale = SubLocaleData.TryGetValue(profile.SubLocale, out var foundSub)
-                ? foundSub : SubLocaleData[profile.Locale = (string?)GetFirst(SubLocaleData.Keys) ?? ""];
-            if (!init) // We are reloading, so instead of initializing menu, we just close everything else and go back to menu
-                ResetToHome(profile, profile.DisplayMode); 
+            Locale = LocaleData.TryGetValue(profile.SelectedLocale, out var found)
+                ? found : LocaleData[profile.SelectedLocale = (string?)GetFirst(LocaleData.Keys) ?? ""];
+            SubLocale = SubLocaleData.TryGetValue(profile.SelectedSubLocale, out var foundSub)
+                ? foundSub : SubLocaleData[profile.SelectedLocale = (string?)GetFirst(SubLocaleData.Keys) ?? ""];
+            //if (!init) // We are reloading, so instead of initializing menu, we just close everything else and go back to menu
+            //    ResetToHome(profile, profile.DisplayMode ?? DisplayMode.Fullscreen); 
             SApp.Profile = profileId; // link pointers
+            App.SetTextShadows(profile.ShadowTexts);
+            App.SetButtonShadows(profile.ShadowButtons);
             if (AppMainMenu is MainMenu m)
                 m.initProfile = m.initLogin = m.initNetwork = m.initWallet = m.initAccount = true;
             SaveApp();
-            void InitMenu() {
-                if (init)
-                    App.StartApp(); // Initializes and opens the special MainMenu panel
-                else if (AppMainMenu != null)
-                    App.Register(AppMainMenu.GetK, AppMainMenu); // registers the menu, because we dind't do so in StartApp
-            }
-            if (IsCorrectPassword()) {
-                profile.CorrectPassword = true;
-                LoadNetworks(); // Loads networks, (and wallets, and txs for the selected one)
-                InitMenu();
-                LoadPanels();   // Loads panels, pinneds, and windows
-            } else {
-                InitMenu(); // Just Init, because we are locked out, the user will have to input correct password to load networks and panels etc
-            }
-            App.RefreshAll();
-            //AppMainPanel?.Update();
+
+            // Load Background
+            string pathB = Path.Combine(path, "background.png");
+            if (File.Exists(pathB))
+                profile.Background = new Bitmap(pathB);
+
+            if (init)
+                App.InitApp();
+            CloseAll();
+            StartProfile(profile.CorrectPassword = IsCorrectPassword());
             return profile;
         }
         // Fail:
@@ -278,21 +277,76 @@ internal static class AppSave {
         SApp.Profiles.Remove(profileId);
         return null;
     }
-    internal static IoProfile? LoadPassword(bool init = false) {
+    internal static void CloseAll(bool OnlyWindows = false) {
+        // unlink main windows/views, so that the app won't close when i close them:
+        App.Desktop?.MainWindow = null;
+        App.SingleView?.MainView = null;
+        App.CanCloseMain = true;
+        if (GetProfile is not IoProfile profile)
+            return;
+        /*List<IoWindow> L = [];
+        foreach (var closeW in profile.Win.OpenedWindows.Values) 
+            L.Add(closeW);
+        foreach (var closeW in L)
+            closeW.Close();*/
+        while (profile.Win.OpenedWindows.Count > 0 && GetFirst(profile.Win.OpenedWindows.Values) is IoWindow w)
+            w.Close();
+        // Close fullscreens:
+        App.FromK(AppMainPanel?.Dock.Original)?.Close(false);
+        DesktopFullscreen?.Close();
+        // Close Panels/Pinneds:
+        if (!OnlyWindows) {
+            while (profile.Pan.LoadedPanels.Count > 0 && GetFirst(profile.Pan.LoadedPanels.Values) is IoPanel p)
+                p.Delete(false);
+            profile.Pan.LoadedPanels = [];
+            profile.Pan.PinnedPanels = [];
+        }
+        profile.Win.OpenedWindows = [];
+        //Make a fake temporary MainPanel, so that i can attach layout measures to it.
+        App.FakeMainPanel();
+        App.CanCloseMain = false;
+    }
+    internal static void StartProfile(bool correctPass, bool reload = true) {
+        //CloseAll(!reload);
+        if (reload) 
+            App.InitProfile();
+       
+        if (correctPass) {
+            if (reload) {
+                LoadNetworks(); // Loads networks, (and wallets, and txs for the selected one)
+                LoadPanels();   // Loads panels, pinneds, and windows
+            }
+            if(GetDisplayMode == IMode.MultiWindow)
+                LoadWindows();  // Load OpenedWindows should abort if not MultiWindow
+        }
+
+        AppMainMenu = App.OpenPanel(null, typeof(MainMenu)) as MainMenu ?? throw new("No MainMenu?");
+        (AppDockRoot = (AppMainPanel = AppMainMenu.GetMyMainPanel())?.Dock)?.Original = AppMainMenu.GetK;
+        AppMainWindow = TryWindow(AppMainPanel?.MyWindowK ?? -1);
+        AppMainMenu.OriginalMainWindow = AppMainWindow == null ? -1 : AppMainWindow.Index;
+        App.StartApp(); // Initializes and opens the special MainMenu panel
+        AppMainMenu.SetTitle();
+        AppMainMenu.Initialize();
+        App.RefreshAll();
+
+    }
+    /*internal static IoProfile? LoadPassword(bool init = false) {
         if (GetProfile is not IoProfile profile)
             return null;
         if (IsCorrectPassword()) {
             profile.CorrectPassword = true;
+            CloseAll();
             LoadNetworks(); // loads networks, (and wallets, and txs for the selected one)
             if (init)
                 App.StartApp();
             LoadPanels();   // loads panels, pinneds, and windows
+            if(GetDisplayMode == DisplayMode.MultiWindow) LoadWindows();
         } else
             if (init)
                 App.StartApp();
         App.RefreshAll();
         return profile;
-    }
+    }*/
     /// <summary>
     /// Loads all networks, called in public after submitting decryption password
     /// </summary>
@@ -472,98 +526,38 @@ internal static class AppSave {
     /// <summary>
     /// Loads Panels, Pinneds, and Windows
     /// </summary>
-    internal static void LoadPanels() {
+    internal static bool LoadPanels() {
         if (GetProfile is not IoProfile profile)
-            return; // null is invalid
+            return false; // null is invalid
         string path = GetProfileDir();
-        void _LoadPan() { // Try load Panels
-            if (!App.DisableSaving)
-                Directory.CreateDirectory(path);
-            var pathf = Path.Combine(path, "panel.json");
-            if (!File.Exists(pathf)) { // Doesn't exist -> create it
-                SavePan();
-                return;
-            }
-            if (DeserializeObject(typeof(IoProfile.SaveFilePan), ReadFile(pathf, profile.Password)) is not IoProfile.SaveFilePan Panels)
-                return;
-            /*void _LoadPan(){
-                // Menu is excluded from loading (though I am alrady excluding it in SAving, but just to be sure)
-                Panels.LoadedPanels.Remove(IoPanel.MakeK(typeof(MainMenu), ""));
-                // Sync Panels:
-                List<string> L = [];
-                var LoadedPanels = profile.Pan.LoadedPanels;
-                foreach (var P in LoadedPanels)
-                    if (!Panels.LoadedPanels.ContainsKey(P.Key))
-                        L.Add(P.Key);
-                foreach (var P in L) {
-                    if (IoPanel.SplitK(P) is (Type, string) key) {
-                        if (key.Item1 != typeof(MainMenu))
-                            LoadedPanels.Remove(P);
-                    } else LoadedPanels.Remove(P);
-                }
-                foreach (var P in Panels.LoadedPanels)
-                    if (!LoadedPanels.ContainsKey(P.Key))
-                        LoadedPanels[P.Key] = P.Value;
-            }
-            _LoadPan();
-            void _LoadPin() {
-                if (Panels.PinnedPanels.Count == 0)
-                    return;
-                // Sync Panels:
-                List<string> L = [];
-                var PinnedPanels = profile.Pan.PinnedPanels;
-                foreach (var P in PinnedPanels)
-                    if (!Panels.PinnedPanels.Contains(P))
-                        L.Add(P);
-                foreach (var P in L)
-                    PinnedPanels.Remove(P);
-                foreach (var P in Panels.PinnedPanels)
-                    if (!PinnedPanels.Contains(P))
-                        PinnedPanels.Add(P);
-                AppMainMenu?.GetMyMainPanel()?.Update();
-            }
-            _LoadPin();
-            void _LoadWin() {
-                if (Panels.OpenedWindows.Count == 0)
-                    return;
-
-                // TODO implement OpenedWindows in general
-                // TODO make sure a proper load / unload / closing / opening happens, maybe use the SetDisplayMode code
-
-                // Sync Panels:
-                List<int> L = [];
-                var OldOpenedWindows = profile.Pan.OpenedWindows;
-                foreach (var P in OldOpenedWindows)
-                    if (!Panels.OpenedWindows.ContainsKey(P.Key))
-                        L.Add(P.Key); // if opened isn't loaded, add to to the removal list
-                foreach (var P in L)
-                    OldOpenedWindows.Remove(P);
-                foreach (var P in Panels.OpenedWindows) // if loaded isn't opened, then put in in the list, excluding main menu (though main menu should alraedy exist, so this second cond is probably redundant)
-                    if (!OldOpenedWindows.ContainsKey(P.Key))// && ((IoDockPanel)P.Value.Dock.Dock.TopNonRoot).Panel != AppMainMenu?.GetK)
-                        OldOpenedWindows[P.Key] = P.Value;
-                // open them in th correct order:
-                bool opened;
-                do {
-                    opened = false;
-                    foreach (var w in OldOpenedWindows) {
-                        if (!w.Value.IsVisible && w.Value.MyMainPanel.Dock != AppDockRoot && (TryWindow(w.Value.OpenedFrom) is not IoWindow par || par.IsVisible)) {
-                            w.Value.Show();
-                            w.Value.IsVisible = opened = true;
-                        }
-                    }
-                } while (opened);
-                // Remove unopened ones:
-                L.Clear();
-                foreach (var w in OldOpenedWindows)
-                    if (!w.Value.IsVisible)
-                        L.Add(w.Key);
-                foreach (var w in L)
-                    OldOpenedWindows.Remove(w);
-                
-            }
-            _LoadWin();*/
+        if (!App.DisableSaving)
+            Directory.CreateDirectory(path);
+        var pathf = Path.Combine(path, "panel.json");
+        if ((File.Exists(pathf)
+            ? DeserializeObject(typeof(IoProfile.SaveFilePan), ReadFile(pathf, profile.Password))
+            : SavePan() // Doesn't exist -> create it
+        ) is IoProfile.SaveFilePan file) {
+            profile.Pan = file;
+            return true;
         }
-        _LoadPan();
+        return false;
+    }
+    internal static bool LoadWindows() {
+        if (GetProfile is not IoProfile profile || profile.InterfaceMode != IMode.MultiWindow)
+            return false; // null is invalid
+        string path = GetProfileDir();
+        if (!App.DisableSaving)
+            Directory.CreateDirectory(path);
+        var pathf = Path.Combine(path, "window.json");
+        if ((File.Exists(pathf)
+            ? DeserializeObject(typeof(IoProfile.SaveFileWin), ReadFile(pathf, profile.Password))
+            : SaveWin() // Doesn't exist -> create it
+        ) is IoProfile.SaveFileWin file) {
+            profile.Win = file;
+            return true;
+        }
+        return false;
+       
     }
     #endregion
 
@@ -672,9 +666,9 @@ internal static class AppSave {
                     foreach (var kv in node.AsObject()) { // special handling for IoPanel
                         if ((typeof(IoPanel).IsAssignableFrom(valType)
                             ? IoPanel.SplitK(kv.Key) is (Type Type, string) key
-                                ? key.Type == typeof(MainMenu)
+                                ? /*key.Type == typeof(MainMenu)
                                     ? null // ListMainMenu is ignored, that is always spawned separately in App.StartApp()
-                                    : DeserializeObject(key.Type, kv.Value?.AsObject())
+                                    :*/ DeserializeObject(key.Type, kv.Value?.AsObject())
                                 : null // fail - invalid key
                             : DeserializeValue(valType, kv.Value)
                         ) is object panel)
@@ -723,8 +717,7 @@ internal static class AppSave {
         if (value == null)
             return null;
         var type = value.GetType();
-        if (type == typeof(MainMenu))
-            return null;
+        //if (type == typeof(MainMenu)) return null;
         /*if (IsTuple(type))            
             return JsonSerializer.SerializeToNode(value, tupleOptions);*/
         if (IsSaveType(type))
@@ -933,14 +926,25 @@ internal static class AppSave {
         }
         return network;
     }
-    internal static bool SavePan() {
+    internal static IoProfile.SaveFilePan? SavePan() {
         if (App.DisableSaving)
-            return false;
+            return GetProfile?.Pan;
         if (GetProfile?.Pan.Dirty ?? false) {
             GetProfile.Pan.Dirty = false; // <ProfileId>/panel.json
             WriteJson(GetProfile.Pan, Path.Combine(GetProfileDir(), "panel"), GetProfile?.Password ?? "");
         }
-        return true;
+        return GetProfile?.Pan;
+    }
+    internal static IoProfile.SaveFileWin? SaveWin() {
+        if (App.DisableSaving)
+            return GetProfile?.Win;
+        if (GetDisplayMode != IMode.MultiWindow)
+            return null;
+        if (GetProfile?.Win.Dirty ?? false) {
+            GetProfile.Win.Dirty = false; // <ProfileId>/panel.json
+            WriteJson(GetProfile.Win, Path.Combine(GetProfileDir(), "window"), GetProfile?.Password ?? "");
+        }
+        return GetProfile?.Win;
     }
     #endregion
 
@@ -964,9 +968,9 @@ internal static class AppSave {
             }
         }
     }
-    internal static void ResetToHome() 
-        => ResetToHome(GetProfile, GetDisplayMode);
-    internal static void ResetToHome(IoProfile? updateProfile, DisplayMode mode) {
+    //internal static void ResetToHome() 
+    //    => ResetToHome(GetProfile, GetDisplayMode);
+    /*internal static void ResetToHome(IoProfile? updateProfile, DisplayMode mode) {
         if (GetProfile is not IoProfile profile)
             return;
         // Undock everything except MainMenu
@@ -1020,7 +1024,7 @@ internal static class AppSave {
         AppDockRoot?.Original = AppMainMenu?.GetK ?? "";
         AppMainWindow?.SystemDecorations = profile.DisplayMode == DisplayMode.MultiWindow ? SystemDecorations.BorderOnly : SystemDecorations.Full;
         App.RefreshPanel(AppMainMenu, 1, true);
-    }
+    }*/
 
     internal static ulong GetBit(ulong mask, int S) => mask & ((ulong)1 << S);
 

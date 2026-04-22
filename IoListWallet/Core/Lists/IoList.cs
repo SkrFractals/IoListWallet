@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Panels;
-using IoListWallet.Core;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -17,7 +16,7 @@ internal class ClickToolEventArgs {
 }
 internal class ClickButtonEventArgs {
     internal int FromList;
-    internal (TextBlock Text, Viewbox View, IoToggleButton Button)? ClickedButton;
+    internal (IoTextBlock Text, Viewbox View, IoToggleButton Button)? ClickedButton;
     internal int Index;
 }
 // This is a core parent of SearchList elements, it querries and contructs a list representation of various elements
@@ -35,7 +34,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
     [Save] internal uint pageSize { get; set { field = value; IoPanel.Dirty(); } } = 10;
     [Save] public IoSwipe Swipe { get; set { field = value; IoPanel.Dirty(); } }*/
 
-    //internal List<((TextBlock Text, Viewbox View, IoToggleButton Button)? Item, int Id)> Selecteds = [];
+    //internal List<((IoTextBlock Text, Viewbox View, IoToggleButton Button)? Item, int Id)> Selecteds = [];
 
     internal IEnumerable<T>? ItemSource;
 
@@ -277,8 +276,11 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
         Results = bucket.TotalCount();  // Bucket has been concatenated, so just ask for count
         return false;
     }
-
-
-
-
+    internal override void RefreshTemplate<IT>(
+    IEnumerable<IT>? source,
+    Func<object?, string[]> itemT,
+    Func<object?, string[]> filterCommandT) {
+        base.RefreshTemplate(source, itemT, filterCommandT);
+        ItemSource = source is IEnumerable<T> typed ? typed : null;
+    }
 }

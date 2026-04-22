@@ -4,7 +4,7 @@ using IoListWallet.Structs.Crypto;
 
 namespace IoListWallet.Core.Obsolete;
 
-internal class UtxoControl : UserControl
+/*internal class UtxoControl : UserControl
 {
     internal UtxoControl(IoTxo utxo)
     {
@@ -16,10 +16,10 @@ internal class UtxoControl : UserControl
 
         // Top row: Address left, Value right
         var topRow = new DockPanel();
-        var valueText = new TextBlock { Text = utxo.Value.ToString() };
+        var valueText = new IoTextBlock { Text = utxo.Value.ToString() };
         DockPanel.SetDock(valueText, Dock.Right);
 
-        var addressText = new TextBlock
+        var addressText = new IoTextBlock
         {
             Text = utxo.Address.GetAddressString(),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
@@ -43,18 +43,18 @@ internal class UtxoControl : UserControl
         buttons.Children.Add(spendBtn);
 
         // Token badges panel
-        /*var tokensPanel = new WrapPanel { Spacing = 4 };
+        var tokensPanel = new WrapPanel { Spacing = 4 };
         foreach (var t in utxo.Tokens)
         {
-            tokensPanel.Children.Add(new TextBlock { Text = $"{t.Id}({t.Value})" });
-        }*/
+            tokensPanel.Children.Add(new IoTextBlock { Text = $"{t.Id}({t.Value})" });
+        }
 
         string tokens = "";
         foreach (var token in utxo.Tokens) {
             tokens = tokens + token.Value + " " + token.Id + "; ";
         }
 
-        var tokensPanel = new TextBlock
+        var tokensPanel = new IoTextBlock
         {
             Text = tokens,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
@@ -70,4 +70,4 @@ internal class UtxoControl : UserControl
 
         Content = root;
     }
-}
+}*/

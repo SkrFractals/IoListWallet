@@ -1,37 +1,29 @@
 ﻿using IoListWallet.Core;
-using IoListWallet.Core.Lists;
 using IoListWallet.Core.Panels;
 using System.Threading;
 using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.IoPanels.Profile;
 internal class SubLocaleSelect : IoListPanel {
-    public SubLocaleSelect() : base() {
-        (MyList[0] = new IoListButtons<string>(this, []) { MyIndex = 0 }).MyFilter.Filters = new IoFilter() { 
-            Filters = [ // Search Formats:
-                new FilterText() { Name = "Code" }, // Language Code 
-                new FilterText() { Name = "Name" }, // Language Name 
-            ], SortIndex = 1, SortIndex2 = 0, Increasing = true, Increasing2 = true
-        };
-        //MyContent.Content = MyList[0].Content;
-    }
+    public SubLocaleSelect() : base() => MakeList<string>(new IoFilter() {
+        Filters = [ // Search Formats:
+            new FilterText() { Name = "Code" }, // Language Code 
+            new FilterText() { Name = "Name" }, // Language Name 
+        ], SortIndex = 1, SortIndex2 = 0, Increasing = true, Increasing2 = true
+    });
     internal override bool IsModal() => true;
     internal override string TrueParentType => MakeK(typeof(ProfileContent), "");
     internal override void RefreshData(int job, CancellationToken? token) {
-        if (MyList[0] is not IoListButtons<string> list)
-            return;
-        list.ItemSource = SubLocaleNames.Keys;
-        list.ItemTemplate = (object? code) 
-            => { var s = (string?)code; return [
-                "T_ProfileContent.SelectSubLanguageEntry", s == null ? "ERROR" : SubLocaleNames[s]
-                ]; };
-        list.FilterCommandTemplate = (code) => code is string c ? [ // Search Data:
-            c, // Language Code
-            SubLocaleNames.TryGetValue(c, out var n) ? n : "" // Language Name
-            ] : [];
+        MyList[0].RefreshTemplate(SubLocaleNames.Keys,
+            (object? code) => ["T_ProfileContent.SelectSubLanguageEntry", code is string s ? SubLocaleNames[s] : "Error"],
+            (code) => code is string c ? [ // Search Data:
+                c, // Language Code
+                SubLocaleNames.TryGetValue(c, out var n) ? n : "" // Language Name
+            ] : []);
         base.RefreshData(job, token);
     }
-    protected override string? Selected(int fromList) => GetProfile?.SubLocale;
+    protected override string? Selected(int fromList) => GetProfile?.SelectedSubLocale;
     protected override void PerformSelect(int fromList, object? tag) 
-        => ((ProfileContent?)TrueParent)?.SetSubLocale((string?)tag);
+        => GetProfile?.SelectedSubLocale = (string?)tag ?? "";
+    protected override bool CloseOnClick(int fromList) => true;
 }

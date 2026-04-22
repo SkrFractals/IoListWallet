@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using IoListWallet.Core.Basic;
+using IoListWallet.Core.Dock;
 using IoListWallet.Core.Static;
 using IoListWallet.IoPanels.Main;
 using IoListWallet.Structs.Crypto;
@@ -20,40 +21,13 @@ using static IoListWallet.Core.Static.AppSave;
 namespace IoListWallet.Core.Panels;
 internal abstract class IoPanel : IoUserControl {
 
-    public class IoPanelSave {
-        /*[Save] // Which panels have me as their ParentPanel
-        internal List<string> ChildPanels { get; set { 
-                AppMainMenu?.ChildPanels = value; field = value; Dirty(); } } = [];*/
-        [Save] // In multiwindow mode, you can write this in the editable title after lciking the Edittitle button
-        internal string UserTitle { get; set { 
-                AppMainMenu?.UserTitle = value; field = value; Dirty(); } } = "";
-        [Save] // In multiwindow mode, you set the titlebar color
-        internal Color TitleColor {
-            get; set {
-                AppMainMenu?.TitleColor = value; field = value; Dirty();
-            }
-        } = Colors.Black; // default titlebar color (only show in setting if multiwindow)
-    }
-
     private const string F = "Failed IoPanel.";
 
     #region Serialized
-    internal string GetTitle() => UserTitle == "" ? MyTitle : UserTitle;
-    internal void Copy(IoPanelSave p) {
-        //Key = p.Key;
-        notConst = false;
-        //ChildPanels = p.ChildPanels;
-        UserTitle = p.UserTitle;
-        TitleColor = p.TitleColor;
-        notConst = true;
-        SetTitle();
-    }
-    protected bool notConst = true;
     internal static void Dirty() => GetProfile?.Pan.Dirty = true; // Somethign was edited in me - dirty the panel.json save file for saving
+
     [Save] // My dictionary key, if another panel will share my key it will point to me, only one isngleton with the same key can exist
-    internal string Key { get; set { Init(Available); field = value; Dirty(); } } = "";
-    //[Save] // Which panels have me as their ParentPanel
-    //internal List<string> ChildPanels { get; set { field = value; Dirty(); } } = [];
+    internal string Key { get; set { field = value; Init(Available); Dirty(); } } = "";
     [Save] // Where I have been opened from recently?
     internal string? ParentPanel { get; set { field = value; Dirty(); } } = null;
     [Save] // In multiwindow mode, you can write this in the editable title after lciking the Edittitle button
@@ -63,11 +37,12 @@ internal abstract class IoPanel : IoUserControl {
             if (GetMyMainPanel()?.Dock.Original == GetK)
                 GetMyMainPanel()?.Dock.SetColor();
             colorPick.Color = field = value;
-            square.Background = ConstructionHelpers.MakeLeftShade();//new SolidColorBrush(Colors.Purple);//ConstructionHelpers.MakeLeftCornerBrush(TitleColor);
+            square.Background = ConstructionHelpers.MakeLeftShade();
             SetTitleBarBackground();
             Dirty(); } } = GetProfile?.TitleColor ?? DPro.TitleColor; // default titlebar color (only show in setting if multiwindow)
-    [Save] // Window that i was originally from (go back to it if undocked)
-    internal int OriginalMainWindow { get; set { field = value; Dirty(); } } = -1;
+    
+    protected bool notConst = true, dragOut = false;
+    internal int OriginalMainWindow;
     #endregion
 
     #region Properties
@@ -75,6 +50,8 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual int RefreshesWhenOpened() => 0;
     internal virtual string TrueParentType => MakeK(typeof(MainMenu), "");
     internal virtual bool DeleteWhenClosed() => false;
+    internal Color GetTitleColor { get => (GetProfile?.TitleUnlock ?? false) ? TitleColor : GetProfile?.TitleColor ?? DPro.TitleColor; }
+    internal string GetTitle() => UserTitle == "" ? MyTitle : UserTitle;
     #endregion
 
     #region Pointers
@@ -90,6 +67,7 @@ internal abstract class IoPanel : IoUserControl {
     internal Grid MyGrid { get; private set; }
     internal Grid OverlayGrid { get; private set; }
     protected UserControl MyContent = new();
+    //internal Bitmap? ProBackground { get; set { field = value; } } = null;
     internal IoMainPanel? GetMyMainPanel() {
         IoDock? RootDock = ParentDock ?? null;
         while (RootDock?.Parent != null)
@@ -106,9 +84,8 @@ internal abstract class IoPanel : IoUserControl {
     #endregion
 
     #region Overlay
-    internal (TextBlock Text, Viewbox View)? Overlay { get; set; }
-    //internal (TextBlock Text, Viewbox View)? OverlayX { get; set; }
-    internal bool IsCursorOver { get => PointerOverOverlay.Count > 0 || IsPointerOver || GetDisplayMode == DisplayMode.Fullscreen; }
+    internal (IoTextBlock Text, Viewbox View)? Overlay { get; set; }
+    internal bool IsCursorOver { get => PointerOverOverlay.Count > 0 || IsPointerOver || GetDisplayMode == IMode.Fullscreen; }
     private readonly HashSet<object> PointerOverOverlay = [];
     internal void AddOverlayPointer(object? c) {
         if (c != null)
@@ -147,11 +124,25 @@ internal abstract class IoPanel : IoUserControl {
     short Hor = 0, Ver = 0;
 
     internal (IoPanel?, IoWindow?) UpdateOverlay(Color c, double dt, double hide, IoWindow? w, PixelPoint dS) {
-        if (Overlay?.Text is not TextBlock t /*|| OverlayX?.Text is not TextBlock tx*/)
+        if (Overlay?.Text is not IoTextBlock t /*|| OverlayX?.Text is not TextBlock tx*/)
             return (null,null);
+
+        var window = TryWindow(GetMyMainPanel()?.MyWindowK ?? -1);
+
+        var disabled = !(window?.IsEnabled ?? true);
+        if (disabled) {
+            dt = 1000000;
+            hide = .01 * (GetProfile?.MaskOpacity ?? DPro.MaskOpacity);
+        }
+
+        // If unconvered, jump to the full unmask period "instantly":
+        if (t.Opacity <= 0 && hide <= 0)
+            dt = 1000000;
+
         OverlayGrid.IsVisible = (t.Opacity = Math.Clamp(hide, t.Opacity - dt, t.Opacity + dt)) > 0.02;
-        MyContent.IsVisible = t.IsVisible = TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow window && !window.isDockDragging;
-        OverlayGrid.Background = new SolidColorBrush(Colors.Black, t.Opacity);
+        t.IsVisible = window != null && !window.isDockDragging;
+        MyContent.IsVisible = t.IsVisible || window == null;
+        OverlayGrid.Background = new SolidColorBrush(disabled ? GetTitleColor : Colors.Black, t.Opacity);
 
         if (w == null || (dS.X == 0 && dS.Y == 0))  {
             rects.Update(0, new(0,0), new(0,0));
@@ -206,14 +197,15 @@ internal abstract class IoPanel : IoUserControl {
     private Border titleTextborder = new() { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsHitTestVisible = true, Background = new SolidColorBrush(Colors.Transparent) };
     private IoToggleButton editTitle;
     private ColorPicker colorPick = new();
-    private (TextBlock Text, IoToggleButton Button)? colorPickB;
+    private (IoTextBlock Text, IoToggleButton Button)? colorPickB;
     private IoToggleButton pin; 
     private IoToggleButton min; 
     private IoToggleButton win;
     private IoToggleButton back;
-    private Border square;
+    internal Border square { get; private set; }
+    internal Border squareR { get; private set; }
     internal DockPreviewOverlay rects { get; private set; } = new();
-    private (IoTextBlock Text, Viewbox View, IoToggleButton Button)? DockBook;
+    private (IoComboBox Text, Viewbox View)? DockBook = null;
     private IoToggleButton home, pinned;
     private void TitleTextBox_LostFocus(object? s, EventArgs e) {
         titleBox.Content = titleTextContent;
@@ -257,8 +249,7 @@ internal abstract class IoPanel : IoUserControl {
         if (mp?.Dock.Original == GetK) {
             // I am the Original, so my titlebar is the window's titlebar, so this will be the un/maximize button
             if (TryWindow(mp?.MyWindowK ?? -1) is IoWindow w)
-                w.WindowState = w.WindowState == WindowState.Normal ? WindowState.Maximized : WindowState.Normal;
-            UpdateMax();
+                w.Maximize();
             return;
         }
         // undock back into my original window
@@ -278,43 +269,78 @@ internal abstract class IoPanel : IoUserControl {
     #endregion
 
     #region Lifetime
-    private Point startPointer;
+    private Point? startPointer;
     //private PixelPoint startPos;
     private bool AmNotOriginal() => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
     private void TitleBarPressed(object? s, PointerPressedEventArgs e) {
-        if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w)
+
+        if (AmNotOriginal()) {
+            // TODO might be nice if I made this work, puling a panel out of dock by its titlebar
+            if (GetDisplayMode != IMode.MultiWindow)
+                return;
+            startPointer = e.GetPosition(null);
+            dragOut = true;
             return;
-        // this only works without global rotations, otherwise it will instantly lose my pointer and never fire release
-        //w.BeginMoveDrag(e); 
-        w.DragStarted();
-        // this also calls pointer lost
-        //e.Pointer.Capture(this); 
+        }
+
+        if (TryWindow(OriginalMainWindow) is not IoWindow w)
+            return;
         startPointer = e.GetPosition(null);
-        //startPos = w.Position;
+        w.DragStarted();
+        //e.Pointer.Capture(this); // capturing pointers just breaks everything
     }
     void TitleBarMoved(object? s, PointerEventArgs e) {
+        var delta = e.GetPosition(null);
+        var start = startPointer ?? delta;
+        startPointer = start;
+        delta -= start;
+        if (dragOut) {
+            if (delta.X * delta.X + delta.Y * delta.Y > 10000) {
+                var prev = ParentDock?.Parent;
+                // removes myself from the other window's dock
+                var c = e.Pointer.Captured;
+                startPointer = null;// e.GetPosition(null);
+                var screenPoint = Titlebar.PointToScreen(e.GetPosition(Titlebar/*TopLevel.GetTopLevel(this)!*/));
+
+                UndockMe();
+                prev?.RefreshMinSize();
+                // respawn my window and attach myself to it's content
+                OpenRefreshPanel(TrueParent, GetType(), Key);
+                if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is not IoWindow draggedOut)
+                    return;
+                // start dragging the new window (but TitleBarMoved is then not called when the pointer is outside the window, also the TitleBarReleased and TitleBarLost don't get called)
+                // i goess the pointer is still pointing to the pervious one, though the "previous one" is still myself, the same title bar, just moved to be a content elsewhere...
+
+                //e.Pointer.Capture(this); // capturing pointers just breaks everything
+
+                draggedOut.Position = new(screenPoint.X - 20, screenPoint.Y - 20);
+                draggedOut.DragStarted();
+                e.Pointer.Capture(c);
+            }
+            return;
+        }
         if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging || w.WindowState == WindowState.Maximized)
             return;
-        var delta = e.GetPosition(null) - startPointer;
         w.Position += new PixelPoint((int)delta.X, (int)delta.Y);
     }
-
     private void TitleBarReleased(object? s, PointerReleasedEventArgs e) => 
-        EndDrag();
+        EndDrag(e.Pointer);
     private void TitleBarLost(object? s, PointerCaptureLostEventArgs e) => 
-        EndDrag();
+        EndDrag(e.Pointer);
     private void TitleBarDoubleTapped(object? s, TappedEventArgs e) {
         if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w)
             return;
         w.DoubleTap();
     }
-    private void EndDrag() {
+    private void EndDrag(IPointer e) {
+        dragOut = false;
+        //e.Capture(null); // capturing pointers just breaks everything
         if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging)
             return;
         w.DragEnded();
     }
-    internal IoPanel() : base() { 
-
+    internal IoPanel() : base() {
+        Background = GetProfile?.BackgroundBrush;
         // Content grid:
         IsVisible = false;
         //ChildPanels = [];
@@ -345,8 +371,17 @@ internal abstract class IoPanel : IoUserControl {
             Child = new TextBlock() { Text =""},
             Background = ConstructionHelpers.MakeLeftShade(),
             VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            MinWidth = 20
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Width = 20,
+            IsHitTestVisible = false
+        };
+        squareR = new Border {
+            Child = new TextBlock() { Text = "" },
+            Background = ConstructionHelpers.MakeRightShade(),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Width = 20,
+            IsHitTestVisible = false
         };
         innerGrid.Children.Add(square);
         titleTextContent.Children.Add(innerGrid);
@@ -363,7 +398,7 @@ internal abstract class IoPanel : IoUserControl {
         colorPickB.Value.Button.Flyout = new Flyout() { Content = colorPick };
         colorPick.ColorChanged += ColorPick_ColorChanged;
         colorPick.Color = TitleColor;
-        TitleColor = TitleColor;
+        TitleColor = TitleColor; // this is called to perform the actions in the setter
         pin = MakeToolbarButton(L("Pin"));
         pin.Click += Pin_Click;
         pin.AreYouSure = ""; // make it togglable in color
@@ -408,15 +443,15 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual void Init(Size available) { }
     internal virtual void Snapshot() { }
     // A parent panel opens this as a new child panel
-    internal virtual void Open(IoPanel Parent) {
+    internal virtual void Open(IoPanel? Parent) {
         if (!IsVisible) {
-            if (GetDisplayMode == DisplayMode.MultiWindow) {
+            if (GetDisplayMode == IMode.MultiWindow) {
                 // open a new window to dock into:
                 IoWindow NewWindow = new() {
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
                 };
                 ParentDock = (IoDockPanels)NewWindow.MyMainPanel.Dock.TopNonRoot;
-                IoDock? dock = Parent.ParentDock;
+                IoDock? dock = Parent?.ParentDock;
                 while (dock?.Parent != null)
                     dock = dock.Parent;
                 if (dock is IoDockRoot Root
@@ -427,18 +462,41 @@ internal abstract class IoPanel : IoUserControl {
                     NewWindow.OpenedFrom = window.Index;
                 } else NewWindow.Show();
                 OriginalMainWindow = NewWindow.Index;
+                if (this is MainMenu)
+                    AppMainWindow = NewWindow;
             } else {
-                // replace myself into parent's dock:
-                ParentDock = Parent.ParentDock ?? AppMainMenu?.ParentDock ?? ParentDock;
-                Parent.IsVisible = false;
-                Parent.UndockMe();
+                if (this is MainMenu thisMenu) {
+                    Register(GetK, AppMainMenu = thisMenu);
+                    IoDockPanels? Dock = null;
+                    if (Desktop != null) {
+                        if (GetDisplayMode == IMode.SingleWindow) {
+                            AppMainPanel = (AppMainWindow = new()).MyMainPanel;
+                            Dock = (IoDockPanels)AppMainWindow.MyMainPanel.Dock.TopNonRoot;
+                        } else {
+                            Dock = (IoDockPanels)(AppMainPanel = new()).Dock.TopNonRoot;
+                        }
+                    } else {
+                        AppMainPanel = new();
+                        Dock = (IoDockPanels)AppMainPanel.Dock.TopNonRoot;
+                    }
+                    (ParentDock = Dock).Panel = [GetK];
+                    AppDockRoot = ParentDock?.Parent as IoDockRoot;
+                    AppDockRoot?.Original = GetK;
+                } else {
+                    // replace myself into parent's dock:
+                    ParentDock = Parent?.ParentDock ?? AppMainMenu?.ParentDock ?? ParentDock;
+                    Parent?.IsVisible = false;
+                    Parent?.UndockMe();
+                }
+
+              
             }
             ParentDock?.Panel = [GetK]; // dock myself in
             GetMyMainPanel()?.Dock.Original = GetK;
-            ParentDock?.Selected = 0;
             Dirty();
         }
-        UpdateOverlay(Colors.Transparent, 1000, 0, null, new(0,0));
+        
+
         OnOpen(); // IsVisible = true; +focus on my window
         // Only set parent if it doesn't cause a loop
         SetTitle();
@@ -447,9 +505,12 @@ internal abstract class IoPanel : IoUserControl {
             if (P == this) return;
             P = FromK(P.ParentPanel);
         }
-        ParentPanel = Parent.GetK;
+        ParentPanel = Parent?.GetK;
     }
     internal virtual IoPanel OnOpen(bool initial = false) {
+        // Focus on me:
+        ParentDock?.Selected = 0;
+        UpdateOverlay(Colors.Transparent, 1000, -(GetProfile?.UnMaskTime ?? DPro.UnMaskTime), null, new(0, 0));
         IsVisible = true;
         if (ParentDock == null)
             return this;
@@ -460,7 +521,7 @@ internal abstract class IoPanel : IoUserControl {
         }
         // Update Bottom toolbar to reflect the state of the new content:
         MainPanel?.Update();
-        if ((GetProfile?.Pan.OpenedWindows.TryGetValue(MainPanel?.MyWindowK ?? -1, out var w) ?? false) && w is IoWindow OpenWindow) {
+        if ((GetProfile?.Win.OpenedWindows.TryGetValue(MainPanel?.MyWindowK ?? -1, out var w) ?? false) && w is IoWindow OpenWindow) {
             OpenWindow.Activate();
             OpenWindow.IsVisible = true;
             OpenWindow.Focus();
@@ -572,14 +633,18 @@ internal abstract class IoPanel : IoUserControl {
             return;
         ParentDock.MyBuild = null;
         var myMain = GetMyMainPanel();
+        myMain?.Dock.UnBuild();
+        myMain?.DockHost.Content = null;
 
         void CloseWin() {
             // If it is the only panel docked in this window in MultiWindow mode - close the window
             if (myMain?.Dock.Original == GetK) //ParentDock?.Parent is IoDockRoot Root)
                 if (TryWindow(myMain?.MyWindowK ?? -1) is IoWindow window//Root.Panel?.MyWindowK ?? -1) is IoWindow window
-                    && GetDisplayMode == DisplayMode.MultiWindow
+                    && GetDisplayMode == IMode.MultiWindow
                     && !window.IsClosing
-                ) window.Close();
+                ) 
+                    window.Close();
+                
         }
 
         // If I was the Original in the docking window, then release them back to their windows (make sure to keep the original IoWindow of each around, only as hidden, with the content detached, that will get reshown and reattached)
@@ -598,7 +663,8 @@ internal abstract class IoPanel : IoUserControl {
                             FromK(p)?.UndockMe(true);
             }
             UndockAll(myMain?.Dock.TopNonRoot);
-
+            if(GetDisplayMode == IMode.MultiWindow)
+                ParentDock.Panel = [];
             CloseWin();
 
         } else {
@@ -638,6 +704,8 @@ internal abstract class IoPanel : IoUserControl {
                     }
                 }
             }
+            if (this is not MainMenu && GetDisplayMode == IMode.MultiWindow)
+                myMain?.DockHost.Content = myMain.Dock.Build();
         }
         /*if (BackToWindow && (TryWindow(OriginalMainWindow)) is IoWindow w) {
             w.Show();
@@ -646,15 +714,18 @@ internal abstract class IoPanel : IoUserControl {
             md.TopNonRoot = t;
             t.Panel = [GetK];
             w.MyMainPanel.DockHost.Content = (t.Parent = md).Build();
-        } else*/ ParentDock = null;
-        myMain?.DockHost.Content = myMain.Dock.Build();
+        } else*/// ParentDock = null;
+        //if(TryWindow(myMain?.MyWindowK ?? -1) != null && GetDisplayMode == DisplayMode.MultiWindow)
+        //if(this is not MainMenu)
+        //    myMain?.DockHost.Content = myMain.Dock.Build();
         Dirty();
     }
     // call this to close the panel
-    internal virtual void Close() {
+    internal virtual void Close(bool goBack = true) {
         if (!IsVisible)
             return;
-        if (FromK(ParentPanel) is not IoPanel p) {
+        var p = FromK(ParentPanel);
+        if (p == null && !CanCloseMain) {
             // closing mainmenu panel
             AppClose();
             return;
@@ -665,11 +736,16 @@ internal abstract class IoPanel : IoUserControl {
         UndockMe();
         prev?.RefreshMinSize();
         int refreshMask;
-        if (GetDisplayMode == DisplayMode.MultiWindow)
-            FromK(ParentPanel)?.OnOpen();
-        else if (ParentPanel != null && FromK((p.ParentDock = Dock)?.Panel[0] = ParentPanel) is IoPanel parent
-            && (refreshMask = parent.OnOpen().RefreshesWhenOpened()) != 0
-        ) RefreshPanel(parent, refreshMask, true); // redock parent into the dock I've undocked myself from
+        if (goBack) {
+            if (GetDisplayMode == IMode.MultiWindow)
+                FromK(ParentPanel)?.OnOpen();
+            else if (ParentPanel != null && p != null && FromK((p.ParentDock = Dock)?.Panel[0] = ParentPanel) is IoPanel parent) {
+
+                if((refreshMask = parent.OnOpen().RefreshesWhenOpened()) != 0)
+                    RefreshPanel(parent, refreshMask, true); // redock parent into the dock I've undocked myself from
+                parent.UpdateMinSize();
+            }
+        }
         OnClose();
         if (DeleteWhenClosed())
             Delete();
@@ -689,7 +765,7 @@ internal abstract class IoPanel : IoUserControl {
                 Unlock(eachwindow);
         }
     }
-    internal void WindowClosed() => Close();
+    internal void WindowClosed() => Close(false);
     internal virtual void Delete(bool refresh = true) {
         ParentDock?.MyBuild = null;
         Content = null;
@@ -725,7 +801,7 @@ internal abstract class IoPanel : IoUserControl {
     #endregion
 
     #region Layout
-    private void UpdateMax() =>
+    internal void UpdateMax() =>
         win.Content = L(GetMyMainPanel()?.Dock.Original == GetK
             && TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow w
             && w.WindowState == WindowState.Normal
@@ -740,41 +816,39 @@ internal abstract class IoPanel : IoUserControl {
     }
     protected virtual string CustomTitle()
         => Key == "" ? "" : "-" + Key;
-    internal void UpdateMinSize(bool shrink = false) {
+    internal void UpdateMinSize(bool shrink = false, bool total = false) {
         if (GetProfile is not IoProfile profile)
             return;
-
-        MinSize = profile.DisplayMode == DisplayMode.Fullscreen ? App.Available : PrepareLayout(App.Available);
-        if (profile.DisplayMode != DisplayMode.Fullscreen && GetMyMainPanel()?.Titlebar is Control c) {
+        if(total && this is IoBookPanel b)
+            b.Book.PrepareLayout(Available);
+        MinSize = profile.InterfaceMode == IMode.Fullscreen ? App.Available : PrepareLayout(App.Available);
+        /*if (profile.DisplayMode != DisplayMode.Fullscreen && GetMyMainPanel()?.Titlebar is Control c) {
             var titlebarSize = MeasureService.Measure(c);
             MinSize = new(Math.Max(MinSize.Width, titlebarSize.Width), MinSize.Height + titlebarSize.Height);
-        }
-
+        }*/
 
         ParentDock?.MinSize = MinSize;
-        if (((GetMyMainPanel()?.shrinkRefresh ?? false) || shrink) && GetDisplayMode != DisplayMode.Fullscreen) {
+        if (((GetMyMainPanel()?.shrinkRefresh ?? false) || shrink) && GetDisplayMode != IMode.Fullscreen) {
             GetMyMainPanel()?.shrinkRefresh = false;
             ParentDock?.RefreshMinSize(true);
         } else ParentDock?.RefreshMinSize();
     }
     internal override Size PrepareLayout(Size available) 
-        => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK 
+        => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK && GetDisplayMode == IMode.MultiWindow
         ? MeasureService.Measure(Titlebar) : new(0, 0);
     
-    internal virtual void Refresh(int job) {
-        RefreshTitleBar();
-    }
+    internal virtual void Refresh(int job) => RefreshTitleBar();
     private void SetTitleBarBackground(){
         var amNotOriginal = GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
 
-        Titlebar.Background = GetDisplayMode == DisplayMode.MultiWindow ? amNotOriginal ? new SolidColorBrush(TitleColor) : ConstructionHelpers.MakeGradBrush(TitleColor) : null;
+        Titlebar.Background = GetDisplayMode == IMode.MultiWindow ? amNotOriginal ? new SolidColorBrush(GetTitleColor) : ConstructionHelpers.MakeGradBrush(GetTitleColor) : null;
     }
     internal void RefreshTitleBar() {
-        if (ParentDock == null)
+        if (ParentDock == null || GetProfile is not IoProfile profile)
             return;
         string sBack = this is MainMenu
         ? "CloseApp"
-        : GetDisplayMode == DisplayMode.MultiWindow
+        : GetDisplayMode == IMode.MultiWindow
             ? "CloseWindow" : "Back";
         ConstructionHelpers.SetTip(back, L("T_" + sBack));
         bool ispinned = GetProfile?.Pan.PinnedPanels.Contains(GetK) ?? false;
@@ -786,7 +860,7 @@ internal abstract class IoPanel : IoUserControl {
         ConstructionHelpers.SetTip(pin, L("T_" + sPin));
 
         UpdateMax();
-        var mw = GetDisplayMode == DisplayMode.MultiWindow;
+        var mw = GetDisplayMode == IMode.MultiWindow;
         SetTitleBarBackground();
 
         var col = 0;
@@ -804,7 +878,7 @@ internal abstract class IoPanel : IoUserControl {
             Titlebar.Children.Add(titleBox); // Title + EditTitle
             Grid.SetColumn(titleBox, col++);
 
-            if (colorPickB != null) {
+            if (colorPickB != null && profile.TitleUnlock) {
                 Titlebar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
                 Titlebar.Children.Add(colorPickB.Value.Button); // ColorPick
                 Grid.SetColumn(colorPickB.Value.Button, col++);
@@ -824,12 +898,13 @@ internal abstract class IoPanel : IoUserControl {
         }
         var amNotOriginal = GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
 
-        if (amNotOriginal || !mw) {
+        /*if ((amNotOriginal && NotLeft) || !mw) {
             square.IsVisible = false;
         } else {
             square.IsVisible = true;
-            square.Background = ConstructionHelpers.MakeLeftShade();//new SolidColorBrush(Colors.Purple);//ConstructionHelpers.MakeLeftCornerBrush(TitleColor);
-        }
+            
+        }*/
+       
 
         if (!(IsModal() || amNotOriginal)) {
 
@@ -869,9 +944,12 @@ internal abstract class IoPanel : IoUserControl {
             Titlebar.Children.Add(win);
             Grid.SetColumn(win, col++);
         }
+       
 
         Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
+        Titlebar.Children.Add(squareR); // squareR
         Titlebar.Children.Add(back); // Close/Back
+        Grid.SetColumn(squareR, col);
         Grid.SetColumn(back, col++);
 
         if (amNotOriginal && mw && ParentDock.Panel.Count > 1) {
@@ -897,7 +975,7 @@ internal abstract class IoPanel : IoUserControl {
                     c.IsDropDownOpen ^= true; // clicked the null button: toggle the dropdown
             }
 
-            var panelBook = MakeBitmaskBox("panelBook", "T_PanelBook", ToPage,
+            DockBook = MakeBitmaskBox("panelBook", "T_PanelBook", ToPage,
                 new FuncDataTemplate<byte?>((bit, _) => GetComboButtons("panelBook", "", bit, ParentDock, onToggleBook)), "flat")
                 ?? throw new(F + "panelBook");
             //panelBook.View.Stretch = Stretch.None;
@@ -905,8 +983,10 @@ internal abstract class IoPanel : IoUserControl {
             //panelBook.Combo.MinWidth = 0;
             //panelBook.Combo.Width = panelBook.Combo.MinWidth;
             Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
-            Titlebar.Children.Add(panelBook.View); // Book
-            Grid.SetColumn(panelBook.View, col++);
+            Titlebar.Children.Add(DockBook.Value.View); // Book
+            Grid.SetColumn(squareR, col);
+            Grid.SetColumn(DockBook.Value.View, col++);
+            
         }
 
         MyGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
@@ -916,6 +996,38 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual void RefreshData(int job, CancellationToken? cancel) { }
     #endregion
 }
+
+
+/*public class IoPanelSave {
+    [Save] // In multiwindow mode, you can write this in the editable title after lciking the Edittitle button
+    internal string UserTitle { get; set { 
+            AppMainMenu?.UserTitle = value; field = value; Dirty(); } } = "";
+    [Save] // In multiwindow mode, you set the titlebar color
+    internal Color TitleColor {
+        get; set {
+            AppMainMenu?.TitleColor = value; field = value; Dirty();
+        }
+    } = Colors.Black; // default titlebar color (only show in setting if multiwindow)
+}*/
+
+/*internal void Copy(IoPanelSave p) {
+//Key = p.Key;
+notConst = false;
+//ChildPanels = p.ChildPanels;
+UserTitle = p.UserTitle;
+TitleColor = p.TitleColor;
+notConst = true;
+SetTitle();
+}*/
+
+
+/*public override void Render(DrawingContext context) {
+    if (ProBackground != null) 
+        context.DrawImage(ProBackground, new Rect(0, 0, ProBackground.PixelSize.Width, ProBackground.PixelSize.Height), new Rect(0, 0, Bounds.Width, Bounds.Height));
+    base.Render(context);
+}*/
+
+
 
 /*internal void ChangeKey(string NewKey) {
         Dirty();

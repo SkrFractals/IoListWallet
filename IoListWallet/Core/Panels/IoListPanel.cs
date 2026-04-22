@@ -1,4 +1,5 @@
 ﻿using IoListWallet.Core.Books;
+using IoListWallet.Core.Lists;
 using IoListWallet.Structs.Crypto;
 using System;
 using static IoListWallet.Core.Static.AppSave;
@@ -18,5 +19,19 @@ internal abstract class IoListPanel : IoListsPanel {
             Book.MakeRow(e, "ListPage", "", [(MyList[0], 1)]);
             base.FillPage(s, e);
         }
+    }
+    protected IoListButtons<T> MakeList<T>(IoFilter f, (string, string)[]? tools = null, int columns = 1, short maxSearch = -1, int index = 0, Func<object?, bool>? disable = null, Func<object?, bool>? skip = null, Func<object?, bool>? selected = null) {
+        var l = new IoListButtons<T>(this, tools == null ? [] : tools) { MyIndex = index };
+        (MyList[index] = l).MyFilter.Filters = f;
+        if (maxSearch >= 0 && (l.MyFilter.MaxSearch = (byte)maxSearch) == 1)
+            l.MyFilter.PageNames = ["Sort"];
+        if (disable != null)
+            l.Disable += disable;
+        if (skip != null)
+            l.Skip += skip;
+        if (selected != null)
+            l.Selected += selected;
+        l.Columns = columns; // 0 = Select Network, 1 = Edit Network
+        return l;
     }
 }

@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Remote.Protocol.Input;
 using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -17,13 +18,16 @@ internal class IoNumericLeftRight : UserControl {
     internal ulong Increment, Minimum, Maximum, Speed;
     internal bool Stretch;
     internal string Tooltip, Watermark, TextLeft, TextRight;
-    internal (TextBlock Text, Viewbox View)? TextLeftBlock, TextRightBlock;
+    internal (IoTextBlock Text, Viewbox View)? TextLeftBlock, TextRightBlock;
 
     internal (IoTextBox Text, Viewbox View, Border Border)? NumberBox;
-    private (TextBlock Text, Viewbox View, IoToggleButton Button)? Prev, Next;
+    private (IoTextBlock Text, Viewbox View, IoToggleButton Button)? Prev, Next;
     private Grid? grid;
-    private ulong prevHeld = 0, nextHeld = 0, processHeld = 1;
-    private bool prevReleaseAction = false, nextReleaseAction = false;
+    internal ulong prevHeld { get; private set; } = 0;
+    internal ulong nextHeld { get; private set; } = 0;
+    private ulong processHeld = 1;
+    internal bool prevReleaseAction { get; private set; } = false;
+    internal bool nextReleaseAction { get; private set; } = false;
 
     private EventHandler<EventArgs>? response = null;
 
@@ -143,6 +147,11 @@ internal class IoNumericLeftRight : UserControl {
                 GlobalPointerLost,
                 RoutingStrategies.Tunnel,
                 true);
+            top.AddHandler(
+                PointerMovedEvent,
+                GlobalPointerMoved,
+                RoutingStrategies.Tunnel,
+                true);
         }
     }
     private void NumberBoxEdited(object? s, EventArgs e) {
@@ -163,16 +172,19 @@ internal class IoNumericLeftRight : UserControl {
         if (Value != PrevValue && Trigger)
             ValueChanged?.Invoke(this, new EventArgs());
     }
+    private int _activePointerId = -1;
     private void PrevPressed(object? s, PointerPressedEventArgs e) {
         prevReleaseAction = true;
+        _activePointerId = e.Pointer.Id;
         PrevPress(prevHeld = ++processHeld);
     }
     private void NextPressed(object? s, PointerPressedEventArgs e) {
         nextReleaseAction = true;
+        _activePointerId = e.Pointer.Id;
         NextPress(nextHeld = ++processHeld);
     }
     private async void PrevPress(ulong Id) {
-        int delay = (int)(1 + Speed / 4.0); // initial delay (ms)
+        int delay = (int)(1000 / (1 + Speed / 4.0)); // initial delay (ms)
         await Task.Delay(delay);
         while (prevHeld == Id) {
             delay = Math.Clamp((int)(delay * (.95f - Speed * .01f)), 200, 420);
@@ -191,9 +203,20 @@ internal class IoNumericLeftRight : UserControl {
             await Task.Delay(delay);
         }
     }
-    private async void GlobalPointerReleased(object? s, PointerReleasedEventArgs e) => Release();
-    private async void GlobalPointerLost(object? s, PointerCaptureLostEventArgs e) => Release();
-    private void Release() {
+    private void GlobalPointerMoved(object? sender, PointerEventArgs e) {
+        if ((prevHeld >0 || nextHeld > 0) && e.Pointer.Id == _activePointerId) {
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) {
+                nextReleaseAction = prevReleaseAction = false;
+                Release();
+            }
+        }
+    }
+    private void GlobalPointerReleased(object? s, PointerReleasedEventArgs e) => Release();
+    private void GlobalPointerLost(object? s, PointerCaptureLostEventArgs e) => Release();
+    internal void Release(bool cancel = false) {
+        if(cancel)
+            nextReleaseAction = prevReleaseAction = false;
+        _activePointerId = -1;
         if (nextReleaseAction)
             Forward();
         if (prevReleaseAction)

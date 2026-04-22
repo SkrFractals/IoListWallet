@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using IoListWallet.Core.Basic;
+using IoListWallet.Core.Dock;
 using IoListWallet.Core.Panels;
 using IoListWallet.Core.Static;
 using System;
@@ -17,13 +18,13 @@ internal abstract class IoUserControl : UserControl {
     protected readonly Dictionary<string, Grid?> dGrids = [];
     protected readonly Dictionary<string, ScrollViewer?> dScrolls = [];
     protected readonly Dictionary<string, WrapPanel?> dTools = [];
-    protected readonly Dictionary<string, (TextBlock Text, Viewbox View)?> dTexts = [];
-    protected readonly Dictionary<string, TextBlock?> sTexts = [];
+    protected readonly Dictionary<string, (IoTextBlock Text, Viewbox View)?> dTexts = [];
+    protected readonly Dictionary<string, IoTextBlock?> sTexts = [];
     protected readonly Dictionary<string, (IoTextBox Text, Viewbox View, Border Border)?> dInputs = [];
     protected readonly Dictionary<string, IoTextBox?> dsInputs = [];
-    protected readonly Dictionary<string, (TextBlock Text, Viewbox View, IoToggleButton Button)?> dButtons = [];
-    protected readonly Dictionary<string, (ColorPicker Color, TextBlock Text, Viewbox View, IoToggleButton Button)?> dcButtons = [];
-    protected readonly Dictionary<string, (TextBlock Text, IoToggleButton Button)?> dSButtons = [];
+    protected readonly Dictionary<string, (IoTextBlock Text, Viewbox View, IoToggleButton Button)?> dButtons = [];
+    protected readonly Dictionary<string, (IoTextBlock Text, Viewbox View, IoColorButton Button)?> dcButtons = [];
+    protected readonly Dictionary<string, (IoTextBlock Text, IoToggleButton Button)?> dSButtons = [];
     protected readonly Dictionary<string, IoNumericLeftRight?> dNumerics = [];
     protected readonly Dictionary<string, (IoCheckBox Check, Viewbox View)?> dChecks = [];
     protected readonly Dictionary<string, (IoComboBox Combo, Viewbox View)?> dCombos = [];
@@ -40,7 +41,7 @@ internal abstract class IoUserControl : UserControl {
     #region MakeHelpers
 
     protected static IoToggleButton MakeToolbarButton(string text) {
-        var t = new TextBlock() { Text = text };
+        var t = new IoTextBlock() { Text = text };
         return new IoToggleButton(t) {
             Content = t, HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -65,13 +66,13 @@ internal abstract class IoUserControl : UserControl {
         JustWrapPanel(ref e);
         return dTools[key] = e;
     }
-    protected (TextBlock Text, Viewbox View)? MakeTextBlock(string key, string tooltip, string text) {
+    protected (IoTextBlock Text, Viewbox View)? MakeTextBlock(string key, string tooltip, string text) {
         if (!dTexts.TryGetValue(key, out var e))
             e = null;
         BigTextBlock(ref e, tooltip, text);
         return dTexts[key] = e;
     }
-    protected TextBlock? MakeSmallTextBlock(string key, string tooltip, string text) {
+    protected IoTextBlock? MakeSmallTextBlock(string key, string tooltip, string text) {
         if (!sTexts.TryGetValue(key, out var e))
             e = null;
         JustTextBlock(ref e, tooltip, text);
@@ -89,23 +90,19 @@ internal abstract class IoUserControl : UserControl {
         JustTextBox(ref e, tooltip, text, L(watermarkLocaleId), Response, ResponseChange);
         return dsInputs[key] = e;
     }
-    protected (TextBlock Text, Viewbox View, IoToggleButton Button)? MakeButton(string key, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? Response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
+    protected (IoTextBlock Text, Viewbox View, IoToggleButton Button)? MakeButton(string key, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? Response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
         if (!dButtons.TryGetValue(key, out var e))
             e = null;
         BigButton(ref e, tooltip, text, Response, isChecked, weight, areYouSure, tag);
         return dButtons[key] = e;
     }
-    protected (ColorPicker Color, TextBlock Text, Viewbox View, IoToggleButton Button)? MakeColorPicker(string key, string tooltip, string text, Color isColor, EventHandler<ColorChangedEventArgs>? Response = null) {
+    protected (IoTextBlock Text, Viewbox View, IoColorButton Button)? MakeColorPicker(string key, string tooltip, string text, Color isColor, EventHandler<ColorChangedEventArgs>? Response = null) {
         if (!dcButtons.TryGetValue(key, out var e))
             e = null;
         BigColorPicker(ref e, tooltip, text, isColor, Response);
         return dcButtons[key] = e;
     }
-
-   
-
-
-    protected (TextBlock Text, IoToggleButton Button)? MakeSmallButton(string key, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? Response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
+    protected (IoTextBlock Text, IoToggleButton Button)? MakeSmallButton(string key, string tooltip = "", string text = "", EventHandler<RoutedEventArgs>? Response = null, bool isChecked = false, FontWeight weight = FontWeight.Normal, string? areYouSure = null, object? tag = null) {
         if (!dSButtons.TryGetValue(key, out var e))
             e = null;
         JustButton(ref e, tooltip, text, Response, isChecked, weight, areYouSure, tag);

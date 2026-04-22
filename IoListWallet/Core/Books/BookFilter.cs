@@ -4,6 +4,7 @@ using Avalonia.Media;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
 using IoListWallet.Core.Panels;
+using IoListWallet.Core.Static;
 using System;
 using System.Collections.Generic;
 using static IoListWallet.App;
@@ -30,10 +31,10 @@ internal class BookFilter : IoBook {
    
     internal IoFilter? Filters;
     internal string ResultsText = "";
-    internal (TextBlock Text, Viewbox View)? Results;
+    internal (IoTextBlock Text, Viewbox View)? Results;
     internal event EventHandler<EventArgs>? OnUpdate;
 
-    //private static = new((index, _) => new IoToggleButton(new TextBlock { Text = ETypes.TryGetValue(fe.EnumType, out var type) ? GetEnumText((Enum)Enum.ToObject(type, index)) : "" }), false);
+    //private static = new((index, _) => new IoToggleButton(new IoTextBlock { Text = ETypes.TryGetValue(fe.EnumType, out var type) ? GetEnumText((Enum)Enum.ToObject(type, index)) : "" }), false);
     private const string F = "Failed BookFilter.";
 
     private int Search = 0;
@@ -213,6 +214,7 @@ internal class BookFilter : IoBook {
                     void update(object? s, EventArgs _)
                         => UpdateText((IoTextBox?)s, filter, set);
                     void setd(object? s, EventArgs _) {
+                        // Toggle disabled bit (each OR seach has one bit)
                         var d = fa.DisabledValues;
                         SetBit(ref d, (ulong)((((IoCheckBox?)s)?.IsChecked ?? false) ? 0 : 1), S);
                         fa.DisabledValues = d;
@@ -268,7 +270,7 @@ internal class BookFilter : IoBook {
             }
             var inc1 = MakeButton(s + "inc1check", "T_Increasing1", Inc(Filters.Increasing), setInc, Filters.Increasing, FontWeight.Normal, "") ?? throw new(F + "inc");
             var sort1 = MakeComboBox(s + "sort1", "T_Sort1", SortIndices, Filters.SortIndex,
-                new FuncDataTemplate<ushort>((mode, _) => new TextBlock { Text = Filters.Filters[mode].Name }, false), setSort1)
+                new FuncDataTemplate<ushort>((mode, _) => new IoTextBlock { Text = Filters.Filters[mode].Name }, false), setSort1)
                 ?? throw new(F + "sort1");
             MakeRow(e, "_Sort", SortIndices.Count > 1 ? "FirstSort" : "Sort", [(inc1.Button, 1), (sort1.View, 3)]);
 
@@ -290,10 +292,20 @@ internal class BookFilter : IoBook {
                 }
                 var inc2 = MakeButton(s + "inc2check", "T_Increasing2", Inc(Filters.Increasing2), setInc2, Filters.Increasing2, FontWeight.Normal, "") ?? throw new(F + "inc");
                 var sort2 = MakeComboBox(s + "sort2", "T_Sort2", SortIndices, Filters.SortIndex2,
-                    new FuncDataTemplate<ushort>((mode, _) => new TextBlock { Text = Filters.Filters[mode].Name }, false), setSort2)
+                    new FuncDataTemplate<ushort>((mode, _) => new IoTextBlock { Text = Filters.Filters[mode].Name }, false), setSort2)
                     ?? throw new(F + "sort2");
                 MakeRow(e, "_Sort2", "SecondSort", [(inc2.Button, 1), (sort2.View, 3)]);
             }
+
+
+            void changePageSize(object? s, EventArgs e) {
+                Filters?.PageSize = (uint?)((IoNumericLeftRight?)s)?.Value ?? 10;
+                OnUpdate?.Invoke(this, new EventArgs());
+            }
+            var pageSize = MakeNumeric(s + "pageSize", "T_PageLength", Filters?.PageSize ?? 10, 1, 100, 1, 1, "PageSize", "", "", changePageSize)
+                ?? throw new(F + "pageSize");
+            MakeRow(e, "_PageSize", "PageSize", [(pageSize, 1)]);
+
         }
         Results = MakeTextBlock(s + "results." + PageS, "T_Results", ResultsText) ?? throw new(F + "Results");
         MakeRow(e, "_Results", "Results", [(Results.Value.View, 1)]);
@@ -320,7 +332,6 @@ internal class BookFilter : IoBook {
         if (more) 
             PageNames[PageNames.Length-1] = "AddSearch";
     }
-
     protected virtual void BeforeTabRefresh(object? sender, EventArgs e) {
         //base.BeforeTabRefresh(sender, e);
         if (Swipe.Page.X <= 0 || Swipe.Page.Y != 0)
@@ -339,7 +350,6 @@ internal class BookFilter : IoBook {
         //Book.PageNames = Book.PageNames;
         Swipe.TransformBounds.ExcMaxX = PageNames.Length;
     }
-  
     private void DeleteSearch(object? s, EventArgs e) {
         var L = PageNames.Length - 2;
         if (L <= 0 || Filters == null)

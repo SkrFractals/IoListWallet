@@ -1,6 +1,7 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using IoListWallet.Core.Basic;
 using IoListWallet.Core.Books;
 using IoListWallet.Core.Panels;
 using System;
@@ -90,7 +91,7 @@ internal class AddressContent : IoBookPanel {
                 }
                 var selectColorBox = MakeComboBox(s + "selectColorBox", T + "SelectAddressColor",
                     Enum.GetValues<AddressBookColor>(), (AddressBookColor)network.AddressBook[MyIndex].Color,
-                    new FuncDataTemplate<AddressBookColor>((mode, _) => new TextBlock { Text = GetEnumText(mode) }, false), selectColor)
+                    new FuncDataTemplate<AddressBookColor>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectColor)
                     ?? throw new(F + "selectColorBox");
                
                 // Address
@@ -115,7 +116,7 @@ internal class AddressContent : IoBookPanel {
                 }
                 var selectDepositBox = MakeComboBox(s + "selectDepositBox", T + "RuleDeposit",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleDeposit,
-                    new FuncDataTemplate<AddressBookRule>((mode, _) => new TextBlock { Text = GetEnumText(mode) }, false), selectDeposit)
+                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectDeposit)
                     ?? throw new(F + "selectDepositBox");
                 void valueDeposit(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxDepositValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
@@ -134,7 +135,7 @@ internal class AddressContent : IoBookPanel {
                 }
                 var selectWithdrawBox = MakeComboBox(s + "selectWithdrawBox", T + "RuleWithdraw",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleWithdraw,
-                    new FuncDataTemplate<AddressBookRule>((mode, _) => new TextBlock { Text = GetEnumText(mode) }, false), selectWithdraw)
+                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectWithdraw)
                     ?? throw new(F + "selectWithdrawBox");
                 void valueWithdraw(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxWithdrawValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
@@ -169,5 +170,9 @@ internal class AddressContent : IoBookPanel {
         }
         base.FillPage(sender, e);
     }
-    private void RefreshParent() => RefreshPanel((typeof(AddressBook), MyNetName), true); 
+    private void RefreshParent() {
+        //if(ParentPanel != null && IoPanel.SplitK(ParentPanel) is (Type, string) k && k.Type == typeof(AddressBook))
+        //RefreshPanel((typeof(AddressBook), MyNetName), true);
+        RefreshPanel(ParentPanel, true);
+    }
 }

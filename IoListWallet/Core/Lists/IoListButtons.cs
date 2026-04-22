@@ -10,7 +10,7 @@ namespace IoListWallet.Core.Lists;
 internal class IoListButtons<T> : IoList<T> {
     internal int Columns = 1;
 
-    private List<(TextBlock Text, Viewbox View, IoToggleButton Button)?[]> Elements = [];
+    private List<(IoTextBlock Text, Viewbox View, IoToggleButton Button)?[]> Elements = [];
     internal IoListButtons(IoListsPanel Owner, (string, string)[] Tools) : base(Owner, Tools) { }
     private const string F = "Failed IoListButtons.";
     protected override void MakeElements() {
@@ -51,7 +51,7 @@ internal class IoListButtons<T> : IoList<T> {
             if (Swipe.Page.Y < 0) Swipe.Page.Y = 0;
             int Id = (int)(iElement + Swipe.Page.Y * pageSize);
             while (Elements.Count <= Id || iColumn > Elements[Id].Length) {
-                var ea = new (TextBlock, Viewbox, IoToggleButton)?[iColumn];
+                var ea = new (IoTextBlock, Viewbox, IoToggleButton)?[iColumn];
                 for (int i = 0; i < iColumn; ++i) ea[i] = null;
                 if (Elements.Count <= Id)
                     Elements.Add(ea);
@@ -59,7 +59,7 @@ internal class IoListButtons<T> : IoList<T> {
             }
             // Makes all the buttons in this row:
             for (int i = 0; i < iColumn; ++i) {
-                (TextBlock Text, Viewbox View, IoToggleButton Button)? element = Elements[Id][i];
+                (IoTextBlock Text, Viewbox View, IoToggleButton Button)? element = Elements[Id][i];
                 // spawn buttons + selected one if present
                 var s = Selected;
                 int index = i;
@@ -85,7 +85,7 @@ internal class IoListButtons<T> : IoList<T> {
             Grid grid = _grid ?? throw new("Failed SearchListButtonRows.Grid");
             // Link buttons:
             for (int i = 0; i < iColumn; ++i) {
-                (TextBlock Text, Viewbox View, IoToggleButton Button)? element = Elements[Id][i];
+                (IoTextBlock Text, Viewbox View, IoToggleButton Button)? element = Elements[Id][i];
                 if (element == null)
                     break;
                 grid.ColumnDefinitions.Add(new ColumnDefinition(i == 0 ? GridLength.Star : GridLength.Auto));

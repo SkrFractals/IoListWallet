@@ -3,21 +3,28 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Books;
 using IoListWallet.Core.Panels;
-using IoListWallet.Core.Static;
 using IoListWallet.IoPanels.Main;
 using IoListWallet.Structs.Crypto;
 using System;
 using System.IO;
-using System.Runtime.CompilerServices;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.IoPanels.Profile;
 internal class ProfileContent : IoBookPanel {
-    internal enum TabProfilePage : byte {
+    bool asyncing = false;
+    protected enum Shadows : byte {
+        None = 0,
+        Weak = 1,
+        Moderate = 2,
+        Heavy = 3
+    }
+    protected enum TabProfilePage : byte {
         TabProfileProfile,
         TabProfileInterface,
         TabProfilePerformance,
@@ -26,7 +33,7 @@ internal class ProfileContent : IoBookPanel {
     protected override string[] GetPageNames() 
         => ["TabProfileProfile", "TabProfileInterface", "TabProfilePerformance", "TabProfileDebug"];
     private IoTextBox? passwordText = null, newPasswordText = null;
-    private TextBlock? changeButton = null;
+    private IoTextBlock? changeButton = null;
     private int newPassCase = 0;
     private string newPass = "", changeWatermark = "", changeButtonText = "ChangePassword";
     private (string Text, IImmutableSolidColorBrush Brush) SetPassBlock(bool correct) => correct 
@@ -44,6 +51,7 @@ internal class ProfileContent : IoBookPanel {
     };
 
     private const string F = "Failed ProfileContent.", T = "T_ProfileContent.";
+    private void PleaseLogin(IoBook.FillPageEventArgs e, string s) => Book.MakeRow(e, "X", "", [(MakeTextBlock(s + "pleaseLogin", "", L("PleaseLogin"))?.View!, 1)]);
     protected override void FillPage(object? sender, IoBook.FillPageEventArgs e) {
         if (GetProfile is not IoProfile profile)
             return;
@@ -56,14 +64,14 @@ internal class ProfileContent : IoBookPanel {
 
                 // Delete Profile Button
                 void clickProfileDelete(object? s, EventArgs e) {
-                    if(Directory.Exists(GetProfileDir()))
+                    if (Directory.Exists(GetProfileDir()))
                         Directory.Delete(GetProfileDir());
                     var p = GetProfile;
                     if (p == null) throw new("No Profile");
                     bool left;
                     do {
                         left = true;
-                        foreach (var i in p.Pan.OpenedWindows)
+                        foreach (var i in p.Win.OpenedWindows)
                             if (i.Value != AppMainWindow) {
                                 i.Value.Close();
                                 left = false;
@@ -72,7 +80,7 @@ internal class ProfileContent : IoBookPanel {
                     SApp.Profiles.Remove(SApp.Profile);
                     SApp.Profile = -1;
                     var enumerator = SApp.Profiles.Keys.GetEnumerator();
-                   
+
 
                     LoadProfile(enumerator.MoveNext() ? enumerator.Current : 0);
                 }
@@ -92,7 +100,7 @@ internal class ProfileContent : IoBookPanel {
                 // LOGIN -----------------------------------------------------
 
                 // Enter Pass Block
-                
+
                 var submitMessage = SetPassBlock(loggedIn);
                 var passBlock = MakeTextBlock(s + "passBlock", "", submitMessage.Text)
                     ?? throw new(F + "validNameBlock");
@@ -115,12 +123,16 @@ internal class ProfileContent : IoBookPanel {
                     (passBlock.Text.Text, passBlock.Text.Foreground) = SetPassBlock(c);
                     if (c) {
                         profile.CorrectPassword = true;
-                        LoadNetworks(); // Loads networks, (and wallets, and txs for the selected one)
-                        LoadPanels();   // Loads panels, pinneds, and windows
-                        passwordText?.Enabled = false;    // lock password box
-                        ((IoToggleButton?)s)?.IsEnabled = false;   // lock submit button
-                        RefreshPanel(this, ~0, true);
-                        RefreshPanel(AppMainMenu, ~0, true);
+                        // Restore screens to the profile's save file:
+                        CloseAll();
+                        StartProfile(profile.CorrectPassword = true);
+                        // Reopen this page:
+                        //OpenRefreshPanel(TrueParent, GetType());
+                        // old raections that didn't restart the screens
+                        //passwordText?.Enabled = false;    // lock password box
+                        //((IoToggleButton?)s)?.IsEnabled = false;   // lock submit button
+                        //RefreshPanel(this, ~0, true);
+                        //RefreshPanel(AppMainMenu, ~0, true);
                         return;
                     }
                     profile.Password = pass;
@@ -187,7 +199,7 @@ internal class ProfileContent : IoBookPanel {
                     ?? throw new(F + "changePasswordButton");
                 changeButton = changePasswordButton.Text;
                 // LAYOUT
-                if(loggedIn)
+                if (loggedIn)
                     Book.MakeRow(e, "R", "ProfileDelete", [(profileDeleteButton.Button, 1)]);
                 Book.MakeRow(e, "0", "ProfileName", [(nameBox.Border, 1)]);
                 Book.MakeRow(e, "1", "LoginStatus", [(passBlock.View, 1)]);
@@ -208,48 +220,87 @@ internal class ProfileContent : IoBookPanel {
 
             #region Interface
             case TabProfilePage.TabProfileInterface:
-                if (!loggedIn)
+                if (!loggedIn) {
+                    PleaseLogin(e, s);
                     break;
+                }
+
                 // Locale
                 void clickLocaleBox(object? s, EventArgs e)
                     => OpenRefreshPanel(this, typeof(LocaleSelect));
-                var localeBox = MakeButton(s + "localeBox", T + "Locale", LocaleNames[profile.Locale], clickLocaleBox)
+                var localeBox = MakeButton(s + "localeBox", T + "Locale", LocaleNames[profile.SelectedLocale], clickLocaleBox)
                     ?? throw new(F + "languageBox");
-
                 var verbLabel = MakeTextBlock(s + "verbLabel", T + "Verbosity", L("Verbosity")) ?? throw new(F + "verbLabel");
 
                 // SubLocale
                 void clickVerbBox(object? s, EventArgs e)
                     => OpenRefreshPanel(this, typeof(SubLocaleSelect));
-                var verbBox = MakeButton(s + "verbBox", T + "Verbosity", SubLocaleNames[profile.SubLocale], clickVerbBox)
+                var verbBox = MakeButton(s + "verbBox", T + "Verbosity", SubLocaleNames[profile.SelectedSubLocale], clickVerbBox)
                     ?? throw new(F + "verbBox");
 
                 // DateFormat
-                void clickDateFormat(object? s, EventArgs e)
-                     => SetDateFormat(s, e);
+                void setDateFormat(object? s, EventArgs e)
+                    => profile.DateFormat = ((IoComboBox?)s)?.Text ?? DPro.DateFormat;
                 var dateFormat = MakeComboBox(s + "dateFormat", T + "DateFormat",
                     DateFormats, profile.DateFormat,
-                    new FuncDataTemplate<string>((mode, _) => new TextBlock { Text = mode }, false), clickDateFormat)
+                    new FuncDataTemplate<string>((mode, _) => new IoTextBlock { Text = mode }, false), setDateFormat)
                     ?? throw new(F + "dateFormat");
                 dateFormat.Combo.IsEditable = true;
 
                 // Display Mode
                 void clickDisplayMode(object? s, EventArgs e)
-                    => SetDisplayMode(((IoComboBox?)s)?.SelectedItem);
+                    => GetProfile?.InterfaceMode = (IMode?)((IoComboBox?)s)?.SelectedItem ?? DPro.InterfaceMode;
                 var displayBox = MakeComboBox(s + "displayBox", T + "DisplayMode",
-                    Enum.GetValues<DisplayMode>(), profile.DisplayMode,
-                    new FuncDataTemplate<DisplayMode>((mode, _) 
-                        => new TextBlock { Text = GetEnumText(mode) }, false), clickDisplayMode)
+                    Enum.GetValues<IMode>(), profile.InterfaceMode ?? IMode.Fullscreen,
+                    new FuncDataTemplate<IMode>((mode, _)
+                        => new IoTextBlock { Text = GetEnumText(mode) }, false), clickDisplayMode)
                     ?? throw new(F + "displayBox");
 
                 // Display Rotation
                 void clickDisplayRotation(object? s, EventArgs e)
-                    => SetDisplayRotation(((IoComboBox?)s)?.SelectedItem);
+                    => GetProfile?.DisplayRotation = (byte?)((IoComboBox?)s)?.SelectedItem ?? 0;
                 var displayRotBox = MakeComboBox(s + "displayRotBox", T + "DisplayRotation",
                     new byte[4] { 0, 1, 2, 3 }, profile.DisplayRotation,
                     new FuncDataTemplate<byte>((mode, _)
-                        => new TextBlock { Text = (mode*90).ToString()+"°" }, false), clickDisplayRotation)
+                        => new IoTextBlock { Text = (mode * 90).ToString() + "°" }, false), clickDisplayRotation)
                     ?? throw new(F + "displayRotBox");
+
+                void clickBackButton(object? sender, RoutedEventArgs e) {
+                    if (asyncing || AppMainPanel == null || TopLevel.GetTopLevel(AppMainPanel) is not TopLevel top)
+                        return;
+                    var options = new FilePickerOpenOptions {
+                        AllowMultiple = false,
+                        FileTypeFilter = [new("Images") { Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp"] }]
+                    };
+                    asyncing = true;
+                    async void back() {
+                        var file = await top.StorageProvider.OpenFilePickerAsync(options);
+                        if (file == null || file.Count <= 0)
+                            return;
+                        using var stream = await file[0].OpenReadAsync();
+                        profile.Background = new Bitmap(stream);
+                    }
+                    back();
+                    asyncing = false;
+                }
+                var backButton = MakeButton(s + "backButton", T + "BackButton", "Load", clickBackButton)
+                   ?? throw new(F + "backButton");
+
+                void backOpacityChange(object? s, EventArgs e)
+                    => profile.BackgroundOpacity = ((IoNumericLeftRight?)s)?.Value ?? DPro.BackgroundOpacity;
+                var backOpacity = MakeNumeric(s + "backOpacity", T + "BackOpacity",
+                    profile.BackgroundOpacity, 0, 100, 1, 10, "BackOpacity", L("BackOpacity"), "", backOpacityChange)
+                   ?? throw new(F + "backOpacity");
+
+                // Title Color
+                void titleUnlock_Toggle(object? s, EventArgs e)
+                    => profile.TitleUnlock = ((IoToggleButton?)s)?.IsChecked ?? false;
+                var titleUnlock = MakeButton(s + "titleUnlock", T + "TitleUnlock", L(profile.TitleUnlock ? "Individual" : "Unified"), titleUnlock_Toggle, profile.TitleUnlock, FontWeight.Normal, "")
+                    ?? throw new(F + "titleUnlock");
+                void titleColor_ColorChanged(object? s, EventArgs e)
+                    => GetProfile?.TitleColor = ((ColorPicker?)s)?.Color ?? DPro.TitleColor;
+                var titleColor = MakeColorPicker(s + "titleColor", "TitleColor", "🎨", TitleColor, titleColor_ColorChanged) ?? throw new(F + "titleColor");
+
 
                 // TODO resolution if fullscreen (make sure to e.Simulated it!)
 
@@ -296,8 +347,6 @@ internal class ProfileContent : IoBookPanel {
                     profile.UnMaskSpeed, 1, 1000000, 1, 1, "Speed", "UnMaskSpeed", "x", changeUnMaskSpeed)
                     ?? throw new(F + "unMaskSpeed");
 
-                // Title Color
-                var titleColor = MakeColorPicker(s + "titleColor", "T_TitleColor", "🎨", TitleColor, ColorPick_ColorChanged) ?? throw new(F + "titleColor");
 
                 // Control Font
                 void clickControlFontBox(object? s, EventArgs e)
@@ -306,7 +355,7 @@ internal class ProfileContent : IoBookPanel {
                     profile.ControlFont.ToString(), clickControlFontBox)
                     ?? throw new(F + "controlFontBox");
                 void clickControlFontSize(object? s, EventArgs e)
-                    => SetControlFont(profile.ControlFont, ((IoNumericLeftRight?)s)?.Value ?? DPro.ControlFontSize);
+                    => profile.ControlFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.ControlFontSize;
                 var controlFontSize = MakeNumeric(s + "controlFontSize", T + "ControlFontSize",
                     (ulong)profile.ControlFontSize, 6, 120, 1, 1, "Size", "", "", clickControlFontSize)
                     ?? throw new(F + "controlFontSize");
@@ -318,12 +367,10 @@ internal class ProfileContent : IoBookPanel {
                     profile.InfoFont.ToString(), clickInfoFontBox)
                     ?? throw new(F + "infoFontBox");
                 void clickInfoFontSize(object? s, EventArgs e)
-                    => SetInfoFont(profile.InfoFont, ((IoNumericLeftRight?)s)?.Value ?? DPro.InfoFontSize);
+                    => profile.InfoFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.InfoFontSize;
                 var infoFontSize = MakeNumeric(s + "infoFontSize", T + "InfoFontSize",
                     (ulong)profile.InfoFontSize, 6, 120, 1, 1, "Size", "", "", clickInfoFontSize)
                     ?? throw new(F + "infoFontSize");
-
-
 
                 // Reset Settings
                 void clickResetInt(object? s, EventArgs e) {
@@ -339,28 +386,34 @@ internal class ProfileContent : IoBookPanel {
                     unMaskTime.Value = DPro.UnMaskTime;
                     unMaskSpeed.Value = DPro.UnMaskSpeed;
                     swipeSensitivity.Value = (ulong)DPro.SwipeSensitivity;
-                    titleColor.Color.Color = DPro.TitleColor;
+                    titleUnlock.Button.IsChecked = DPro.TitleUnlock;
+                    titleColor.Button.isColor = profile.TitleColor = DPro.TitleColor;
                     // Reset Language
-                    profile.Locale = DPro.Locale;
+                    profile.SelectedLocale = DPro.SelectedLocale;
                     RefreshPanel((typeof(LocaleSelect), ""), true);
                     // Reset Display
                     displayRotBox.Combo.SelectedIndex = DPro.DisplayRotation;
-                    displayBox.Combo.SelectedIndex = (int)DPro.DisplayMode;                }
+                    displayBox.Combo.SelectedIndex = (int)(DPro.InterfaceMode ?? IMode.Fullscreen);
+                }
                 var resetIntButton = MakeButton(s + "resetIntButton", T + "Reset", "Reset", clickResetInt)
                     ?? throw new(F + "resetButton");
 
                 Book.MakeRow(e, "0", "ResetToDefault", [(resetIntButton.Button, 1)]);
                 Book.MakeRow(e, "1", "Locale", [(localeBox.Button, 1), (verbLabel.View, 1), (verbBox.Button, 1)]);
                 Book.MakeRow(e, "2", "DateFormat", [(dateFormat.View, 1)]);
-                Book.MakeRow(e, "3", "DisplayMode", [(displayBox.View, 1)]);
+                if (Desktop != null) // Only Desktop lifetime can choose window modes
+                    Book.MakeRow(e, "3", "DisplayMode", [(displayBox.View, 1)]);
                 Book.MakeRow(e, "4", "DisplayRotation", [(displayRotBox.View, 1)]);
-                Book.MakeRow(e, "5", "ShowTooltips", [(showTooltips, 1)]);
-                Book.MakeRow(e, "6", "MaskOpacity", [(maskOpacity, 1)]);
-                Book.MakeRow(e, "7", "UnMaskTime", [(unMaskTime, 2), (unMaskSpeed, 3)]);
-                Book.MakeRow(e, "8", "SwipeTime", [(swipeTime, 2), (swipeSensitivity, 3)]);
-                Book.MakeRow(e, "9", "TitleColor", [(titleColor.Button, 1)]);
-                Book.MakeRow(e, "A", "ControlFont", [(controlFontBox.Button, 1), (controlFontSize, 2)]);
-                Book.MakeRow(e, "B", "InfoFont", [(infoFontBox.Button, 1), (infoFontSize, 2)]);
+                Book.MakeRow(e, "5", "Background", [(backButton.Button, 1), (backOpacity, 1)]);
+                Book.MakeRow(e, "A", "TitleColor", [(titleUnlock.Button, 2), (titleColor.Button, 1)]);
+                Book.MakeRow(e, "6", "ShowTooltips", [(showTooltips, 1)]);
+                if (profile.InterfaceMode != IMode.Fullscreen || e.Simulated) { // fullscreen doesn't mask
+                    Book.MakeRow(e, "7", "MaskOpacity", [(maskOpacity, 1)]);
+                    Book.MakeRow(e, "8", "UnMaskTime", [(unMaskTime, 2), (unMaskSpeed, 3)]);
+                }
+                Book.MakeRow(e, "9", "SwipeTime", [(swipeTime, 2), (swipeSensitivity, 3)]);
+                Book.MakeRow(e, "B", "ControlFont", [(controlFontBox.Button, 1), (controlFontSize, 2)]);
+                Book.MakeRow(e, "C", "InfoFont", [(infoFontBox.Button, 1), (infoFontSize, 2)]);
                 
 
                 break;
@@ -368,8 +421,26 @@ internal class ProfileContent : IoBookPanel {
 
             #region Performance:
             case TabProfilePage.TabProfilePerformance:
-                if (!loggedIn)
+                if (!loggedIn) {
+                    PleaseLogin(e, s);
                     break;
+                }
+
+                var st = new FuncDataTemplate<Shadows>((mode, _) => new TextBlock { Text = GetEnumText(mode) }, false);
+                // Shadow Texts (Toggling this dones't work right yet, so I'm just keeping it on low always, until fixed)
+                /*void selectShadowTexts(object? s, EventArgs e)
+                    => profile.ShadowTexts = (byte)(((ComboBox?)s)?.SelectedIndex ?? DPro.ShadowTexts);
+                var shadowTexts
+                   = MakeComboBox(s + "shadowTexts", T + "ShadowTexts", Enum.GetValues<Shadows>(), (Shadows)profile.ShadowTexts, st, selectShadowTexts)
+                    ?? throw new(F + "shadowTexts");*/
+
+                // Shadow Buttons
+                void selectShadowButtons(object? s, EventArgs e)
+                    => profile.ShadowButtons = (byte)(((ComboBox?)s)?.SelectedIndex ?? DPro.ShadowButtons);
+                var shadowButtons
+                   = MakeComboBox(s + "shadowButtons", T + "ShadowButtons", Enum.GetValues<Shadows>(), (Shadows)profile.ShadowButtons, st, selectShadowButtons)
+                    ?? throw new(F + "shadowButtons");
+
                 // Max Tasks
                 void clickMaxTasks(object? s, EventArgs e) {
                     profile.MaxTasks = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.MaxTasks;
@@ -387,10 +458,12 @@ internal class ProfileContent : IoBookPanel {
                     ?? throw new(F + "maxSearchTabs");
 
                 // Sort Algo
+                void setSortAlgo(object? s, EventArgs e) 
+                    => profile.SortAlgo = (SortAlgo?)((ComboBox?)s)?.SelectedItem ?? DPro.SortAlgo;
                 var sortAlgoBox = MakeComboBox(s + "sortAlgo", T + "SortAlgo", 
                     Enum.GetValues<SortAlgo>(), profile.SortAlgo,
                     new FuncDataTemplate<SortAlgo>((mode, _) 
-                        => new TextBlock { Text = GetEnumText(mode) }, false), SetSortAlgo)
+                        => new TextBlock { Text = GetEnumText(mode) }, false), setSortAlgo)
                     ?? throw new(F + "sortAlgoBox");
                
                 void clickDefaultToSingle(object? s, EventArgs e) {
@@ -444,6 +517,8 @@ internal class ProfileContent : IoBookPanel {
                 
                 // Reset Settings
                 void clickResetPerf(object? s, EventArgs e) {
+                    //shadowTexts.Combo.SelectedIndex = DPro.ShadowTexts;
+                    shadowButtons.Combo.SelectedIndex = DPro.ShadowButtons;
                     maxSearchTabs.Value = DPro.MaxSearchTabs;
                     maxTasks.Value = MaxTasks;
                     defaultToSingle.Value = DPro.DefaultToSingle;
@@ -458,11 +533,13 @@ internal class ProfileContent : IoBookPanel {
                     ?? throw new(F + "resetButton");
 
                 // Show Perf Page:
-                Book.MakeRow(e, "0", "ResetToDefault", [(resetPerfButton.Button, 1)]);
-                Book.MakeRow(e, "1", "MaxTasks", [(maxTasks, 1)]);
-                Book.MakeRow(e, "2", "MaxSearchTabs", [(maxSearchTabs, 1)]);
-                Book.MakeRow(e, "3", "SortAlgo", [(sortAlgoBox.View, 1)]);
-                Book.MakeRow(e, "4", "DefaultToSingle", [(defaultToSingle, 1)]);
+                //Book.MakeRow(e, "0", "ShadowTexts", [(shadowTexts.View, 1)]);
+                Book.MakeRow(e, "1", "ShadowButtons", [(shadowButtons.View, 1)]);
+                Book.MakeRow(e, "2", "ResetToDefault", [(resetPerfButton.Button, 1)]);
+                Book.MakeRow(e, "3", "MaxTasks", [(maxTasks, 1)]);
+                Book.MakeRow(e, "4", "MaxSearchTabs", [(maxSearchTabs, 1)]);
+                Book.MakeRow(e, "5", "SortAlgo", [(sortAlgoBox.View, 1)]);
+                Book.MakeRow(e, "6", "DefaultToSingle", [(defaultToSingle, 1)]);
 
                 // Show sort properties:
                 var sac = e.Simulated ? SortAlgo.P_BucketIntro : (SortAlgo?)sortAlgoBox.Combo.SelectedItem;
@@ -471,13 +548,13 @@ internal class ProfileContent : IoBookPanel {
                         case SortAlgo.S_Intro:
                             break;
                         case SortAlgo.P_IntroMerge:
-                            Book.MakeRow(e, "5", "SpinInstructions", [(pimSpin, 1)]);
-                            Book.MakeRow(e, "6", "VolatileBuffer", [(pimVolatile, 1)]);
+                            Book.MakeRow(e, "7", "SpinInstructions", [(pimSpin, 1)]);
+                            Book.MakeRow(e, "8", "VolatileBuffer", [(pimVolatile, 1)]);
                             break;
                         case SortAlgo.P_BucketIntro:
-                            Book.MakeRow(e, "7", "SplitChilren", [(pbiSplitChilren, 1)]);
-                            Book.MakeRow(e, "8", "MinMaxBucketSize", [(pbiMinMaxBucketSize, 1)]);
-                            Book.MakeRow(e, "9", "DistributionTiers", [(pbiDistributionTiers, 1)]);
+                            Book.MakeRow(e, "9", "SplitChilren", [(pbiSplitChilren, 1)]);
+                            Book.MakeRow(e, "A", "MinMaxBucketSize", [(pbiMinMaxBucketSize, 1)]);
+                            Book.MakeRow(e, "B", "DistributionTiers", [(pbiDistributionTiers, 1)]);
                             break;
                     }
 
@@ -487,11 +564,15 @@ internal class ProfileContent : IoBookPanel {
                 #region Debug
                
             case TabProfilePage.TabProfileDebug:
-                if (!loggedIn)
+                if (!loggedIn) {
+                    PleaseLogin(e, s);
                     break;
+                }
+                void setDebugLocale(object? s, RoutedEventArgs e) 
+                    => profile.DebugLocale = ((IoToggleButton?)s)?.IsChecked ?? false;
                 var debugLocale 
                     = MakeButton(s + "debugLocale", T + "DebugLocale", Dis(!profile.DebugLocale),
-                        SetDebugLocale, profile.DebugLocale, FontWeight.Normal, "")
+                        setDebugLocale, profile.DebugLocale, FontWeight.Normal, "")
                     ?? throw new(F + "debugLocale");
                 Book.MakeRow(e, "0", "DebugLocale", [(debugLocale.Button, 1)]);
 
@@ -500,109 +581,4 @@ internal class ProfileContent : IoBookPanel {
         }
         base.FillPage(sender, e);
     }
-    #region Setters
-    private static void SetDisplayMode(object? modeObject) {
-        if (GetProfile is not IoProfile profile 
-            || modeObject == null 
-            || modeObject is not DisplayMode mode
-            || mode == profile.DisplayMode)
-            return;
-        ResetToHome(profile, mode);
-        OpenRefreshPanel(AppMainMenu, typeof(ProfileContent), "", 1);
-    }
-
-    void ColorPick_ColorChanged(object? s, EventArgs e) {
-        if (GetProfile is not IoProfile profile || s is not ColorPicker cp)
-            return;
-
-        var oldColor = profile.TitleColor;
-        profile.TitleColor = cp.Color;
-
-        foreach (var p in profile.Pan.LoadedPanels) {
-            if (p.Value.TitleColor == oldColor)
-                p.Value.TitleColor = profile.TitleColor;
-        }
-    }
-
-    private static void SetDisplayRotation(object? modeObject) {
-        if (GetProfile is not IoProfile profile
-            || modeObject == null
-            || modeObject is not byte mode
-            || mode == profile.DisplayRotation)
-            return;
-        profile.DisplayRotation = mode;
-        AppSave.UpdateRotation();
-        Application.Current?.Resources["RotateTransform"] = 90 * mode;
-        RefreshSizes();
-    }
-    internal void SetSortAlgo(object? s, EventArgs e) {
-        if (((ComboBox?)s)?.SelectedItem is not object algoObject || algoObject is not SortAlgo Algo)
-            return;
-        GetProfile?.SortAlgo = Algo;
-        RefreshPanel(this, 0, true); // Refresh this 
-    }
-    internal void SetLocale(string? lang) {
-        if(GetProfile is not IoProfile profile || lang == null || lang == profile.Locale || !LocaleNames.ContainsKey(lang))
-            return;
-        Locale = LocaleData[profile.Locale = lang];
-        if (dButtons.TryGetValue("languageBox", out var t))
-            t?.Text.Text = LocaleNames[profile.Locale];
-        RefreshAll(); // refresh all panels (translate contents)
-        foreach (var w in profile.Pan.OpenedWindows)
-            w.Value.MyMainPanel.Dock.Panel?.Update(); // Update mainpanels (translates bottom toolbars)
-    }
-    internal void SetSubLocale(string? lang) {
-        if (GetProfile is not IoProfile profile || lang == null || lang == profile.SubLocale || !SubLocaleNames.ContainsKey(lang))
-            return;
-        SubLocale = SubLocaleData[profile.SubLocale = lang];
-        if (dButtons.TryGetValue("languageBox", out var t))
-            t?.Text.Text = SubLocaleNames[profile.Locale];
-        RefreshAll(); // refresh all panels (translate contents)
-        foreach (var w in profile.Pan.OpenedWindows)
-            w.Value.MyMainPanel.Dock.Panel?.Update(); // Update mainpanels (translates bottom toolbars)
-    }
-    internal void SetControlFont(object? familyObject, double size) {
-        if (GetProfile is not IoProfile profile || familyObject is not string family || (family == profile.ControlFont && size == profile.ControlFontSize))
-            return;
-        Application.Current?.Resources["ControlFontFamily"] = new FontFamily(profile.ControlFont = family);
-        Application.Current?.Resources["ControlFontSize"] = profile.ControlFontSize = size;
-        if(dInputs.TryGetValue("controlFontBox", out var t))
-            t?.Text.Text = family.ToString();
-        RefreshSizes();
-    }
-    private static void RefreshSizes() {
-        if(GetProfile is IoProfile profile)
-            foreach (var o in profile.Pan.LoadedPanels) {
-            if (o.Value is IoBookPanel b) {
-                b.Book.PrepareLayout(Available);
-            }
-            o.Value.PrepareLayout(Available);
-            o.Value.UpdateMinSize();
-        }
-    }
-    internal void SetInfoFont(object? familyObject, double size) {
-        if (GetProfile is not IoProfile profile || familyObject is not string family || (family == profile.InfoFont && size == profile.InfoFontSize))
-            return;
-        Application.Current?.Resources["InfoFontFamily"] = new FontFamily(profile.InfoFont = family);
-        Application.Current?.Resources["InfoFontSize"] = profile.InfoFontSize = size;
-        if (dInputs.TryGetValue("infoFontBox", out var t))
-            t?.Text.Text = family.ToString();
-        RefreshSizes();
-    }
-    private void SetDebugLocale(object? s, RoutedEventArgs e) {
-        if (GetProfile is not IoProfile profile)
-            return;
-        profile.DebugLocale = ((IoToggleButton?)s)?.IsChecked ?? false;
-        if (dButtons.TryGetValue("debugLocale", out var b) && b != null) 
-            b.Value.Text.Text = Dis(profile.DebugLocale);
-        RefreshAll();
-    }
-    private void SetDateFormat(object? s, EventArgs e) {
-        if (GetProfile is not IoProfile profile)
-            return;
-        var dateFormat = ((IoComboBox?)s)?.Text ?? DPro.DateFormat;
-        profile.DateFormat = dateFormat;
-        RefreshAll();
-    }
-    #endregion
 }
