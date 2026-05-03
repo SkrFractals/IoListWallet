@@ -2,7 +2,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Remote.Protocol.Input;
 using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -18,11 +17,12 @@ internal class IoNumericLeftRight : UserControl {
     internal ulong Increment, Minimum, Maximum, Speed;
     internal bool Stretch;
     internal string Tooltip, Watermark, TextLeft, TextRight;
-    internal (IoTextBlock Text, Viewbox View)? TextLeftBlock, TextRightBlock;
+    internal WTextBlock? TextLeftBlock, TextRightBlock;
 
-    internal (IoTextBox Text, Viewbox View, Border Border)? NumberBox;
-    private (IoTextBlock Text, Viewbox View, IoToggleButton Button)? Prev, Next;
+    internal WTextBox? NumberBox;
+    private WToggleButton? Prev, Next;
     private Grid? grid;
+    internal IoUserControl? Owner;
     internal ulong prevHeld { get; private set; } = 0;
     internal ulong nextHeld { get; private set; } = 0;
     private ulong processHeld = 1;
@@ -31,7 +31,7 @@ internal class IoNumericLeftRight : UserControl {
 
     private EventHandler<EventArgs>? response = null;
 
-    internal IoNumericLeftRight(string tooltip, ulong value, ulong minimum, ulong maximum, ulong increment, ulong speed, string watermarkLocaleId = "", bool stretch = true, string textLeft = "", string textRight = "", EventHandler<EventArgs>? newResponse = null) {
+    internal IoNumericLeftRight(IoUserControl? owner, string tooltip, ulong value, ulong minimum, ulong maximum, ulong increment, ulong speed, string watermarkLocaleId = "", bool stretch = true, string textLeft = "", string textRight = "", EventHandler<EventArgs>? newResponse = null) {
 
         AttachedToVisualTree += OnAttached;
         ClipToBounds = false;
@@ -40,30 +40,30 @@ internal class IoNumericLeftRight : UserControl {
         Maximum = maximum;
         Increment = increment;
         Stretch = stretch;
-        BigTextBlock(ref TextLeftBlock, "", TextLeft = textLeft);
+        BigTextBlock(ref TextLeftBlock, null, "", TextLeft = textLeft);
             if(TextLeftBlock == null)
                 throw new("Failed NumericLeftRight.TextLeft");
-        BigTextBlock(ref TextRightBlock, "", TextRight = textRight);
+        BigTextBlock(ref TextRightBlock, null, "", TextRight = textRight);
         if(TextRightBlock == null)
             throw new("Failed NumericLeftRight.TextRight");
         SetResponse(newResponse);
 
         // TextBox
-        BigTextBox(ref NumberBox, Tooltip = tooltip, (Value = value).ToString(), Watermark = watermarkLocaleId, NumberBoxEdited, NumberBoxEdited);
+        BigTextBox(ref NumberBox, Owner = owner, Tooltip = tooltip, (Value = value).ToString(), Watermark = watermarkLocaleId, NumberBoxEdited, NumberBoxEdited);
         if (NumberBox == null)
             throw new("Failed NumericLeftRight.NumberBox");
         // Previous
-        BigButton(ref Prev, "", "◀");
+        BigButton(ref Prev, null, "", "◀");
         if (Prev == null)
             throw new("Failed NumericLeftRight.Prev");
-        Prev.Value.Button.AddHandler(PointerPressedEvent, PrevPressed, RoutingStrategies.Tunnel);
-        Prev.Value.Button.IsEnabled = Value > Minimum;
+        Prev.Button.AddHandler(PointerPressedEvent, PrevPressed, RoutingStrategies.Tunnel);
+        Prev.Button.IsEnabled = Value > Minimum;
         // Next
-        BigButton(ref Next, "", "▶");
+        BigButton(ref Next, null, "", "▶");
         if (Next == null)
             throw new("Failed NumericLeftRight.Next");
-        Next.Value.Button.AddHandler(PointerPressedEvent, NextPressed, RoutingStrategies.Tunnel);
-        Next.Value.Button.IsEnabled = Value < Maximum;
+        Next.Button.AddHandler(PointerPressedEvent, NextPressed, RoutingStrategies.Tunnel);
+        Next.Button.IsEnabled = Value < Maximum;
         BuildGrid();
         Refresh();
     }
@@ -82,12 +82,12 @@ internal class IoNumericLeftRight : UserControl {
     internal void SetEnabled(bool Enabled) {
         if (Prev == null || Next == null || NumberBox == null)
             return;
-        Prev.Value.Button.IsEnabled = Next.Value.Button.IsEnabled = NumberBox.Value.Text.Enabled = Enabled;
+        Prev.Button.IsEnabled = Next.Button.IsEnabled = NumberBox.Text.Enabled = Enabled;
     }
     internal void Refresh() {
-        BigTextBox(ref NumberBox, Tooltip, Value.ToString(), Watermark);
-        BigTextBlock(ref TextLeftBlock, "", TextLeft);
-        BigTextBlock(ref TextRightBlock, "", TextRight);
+        BigTextBox(ref NumberBox, Owner, Tooltip, Value.ToString(), Watermark);
+        BigTextBlock(ref TextLeftBlock, null, "", TextLeft);
+        BigTextBlock(ref TextRightBlock, null, "", TextRight);
         Prev?.Button.IsEnabled = Value > Minimum;
         Next?.Button.IsEnabled = Value < Maximum;
     }
@@ -112,24 +112,24 @@ internal class IoNumericLeftRight : UserControl {
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto)); // Right
         }
         if (TextLeftBlock != null) {
-            Grid.SetColumn(TextLeftBlock.Value.View, 0);
-            AddChild(grid, TextLeftBlock.Value.View); //grid.Children.Add(TextLeftBlock.Value.View);
+            Grid.SetColumn(TextLeftBlock.View, 0);
+            AddChild(grid, TextLeftBlock.View); //grid.Children.Add(TextLeftBlock.Value.View);
         }
         if (Prev != null) {
-            Grid.SetColumn(Prev.Value.Button, 1);
-            AddChild(grid, Prev.Value.Button); //grid.Children.Add(Prev.Value.Button);
+            Grid.SetColumn(Prev.Button, 1);
+            AddChild(grid, Prev.Button); //grid.Children.Add(Prev.Value.Button);
         }
         if (NumberBox != null) {
-            Grid.SetColumn(NumberBox.Value.Border, 2);
-            AddChild(grid, NumberBox.Value.Border); //grid.Children.Add(NumberBox.Value.Border);
+            Grid.SetColumn(NumberBox.Border, 2);
+            AddChild(grid, NumberBox.Border); //grid.Children.Add(NumberBox.Value.Border);
         }
         if (Next != null) {
-            Grid.SetColumn(Next.Value.Button, 3);
-            AddChild(grid, Next.Value.Button); //grid.Children.Add(Next.Value.Button);
+            Grid.SetColumn(Next.Button, 3);
+            AddChild(grid, Next.Button); //grid.Children.Add(Next.Value.Button);
         }
         if (TextRightBlock != null) {
-            Grid.SetColumn(TextRightBlock.Value.View, 4);
-            AddChild(grid, TextRightBlock.Value.View); //grid.Children.Add(TextRightBlock.Value.View);
+            Grid.SetColumn(TextRightBlock.View, 4);
+            AddChild(grid, TextRightBlock.View); //grid.Children.Add(TextRightBlock.Value.View);
         }
         FinishChildren(grid);
         Content ??= grid;
@@ -158,12 +158,12 @@ internal class IoNumericLeftRight : UserControl {
         var PrevValue = Value;
         if (NumberBox == null)
             return;
-        NumberBox.Value.Text.Text = NumberBox.Value.Text.Text == null ? "" : Regex.Replace(NumberBox.Value.Text.Text, "[^0-9]", "");
-        if (NumberBox.Value.Text.Text != "") {
-            ulong.TryParse(NumberBox.Value.Text.Text, out var value);
+        NumberBox.Text.Text = NumberBox.Text.Text == null ? "" : Regex.Replace(NumberBox.Text.Text, "[^0-9]", "");
+        if (NumberBox.Text.Text != "") {
+            ulong.TryParse(NumberBox.Text.Text, out var value);
             string ns = (Value = Math.Clamp(value, Minimum, Maximum)).ToString();
-            if (ns != NumberBox.Value.Text.Text)
-                NumberBox.Value.Text.Text = ns;
+            if (ns != NumberBox.Text.Text)
+                NumberBox.Text.Text = ns;
         } else Value = 0;
 
         Prev?.Button.IsEnabled = Value > Minimum;

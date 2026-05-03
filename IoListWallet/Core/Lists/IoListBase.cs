@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Books;
-using IoListWallet.Core.Panels;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -12,15 +11,31 @@ using static IoListWallet.Core.Static.ConstructionHelpers;
 
 namespace IoListWallet.Core.Lists;
 internal abstract class IoListBase : IoUserControl {
+
+    internal class ClickToolEventArgs {
+        internal int FromList;
+        internal int Index;
+    }
+    internal class ClickRowEventArgs {
+        internal int FromList;
+        internal object? ClickedRow = null;
+        internal int Index = 0;
+        internal int SubIndex = 0;
+    }
+
+    /*internal class IoEntry_ContentButtons(WContentButton?[] content) : IoEntry {
+        internal WContentButton?[] Content = content;
+    }*/
     internal IoPanel Owner { get; private set; }
     internal IoPopup MyPopup { get; private set; }
     internal IoSwipe Swipe { get; private set; }
     internal BookFilter MyFilter { get; private set; }
-    public List<(object Key, byte Selected, string[] Texts)> SourceList { get; protected set; } = []; // Final list to be build into the custom UserControls, after being filtered sorted
+    public List<(object Key, byte State, IoGen.Data? GenData)> SourceList { get; protected set; } = []; // Final list to be build into the custom UserControls, after being filtered sorted
     internal List<(UserControl Entry, Grid? Parent)> PageEntries = []; // The UserElements built from the SourceList
 
     // Owner will set this up:
-    internal Func<object?, string[]>? ItemTemplate = null;
+    internal IoGen? MyGen = null;
+    internal Func<object?, IoGen.Data?>? ItemTemplate = null;
     internal Func<object?, string[]>? FilterCommandTemplate = null;
     internal Func<object?, bool>? Skip = Null;
     internal Func<object?, bool>? Disable = Null;
@@ -32,30 +47,29 @@ internal abstract class IoListBase : IoUserControl {
     internal int MyIndex;
 
     protected List<Control> ToolbarList = [];
-    protected List<(IoTextBlock Text, IoToggleButton Button)?> toolButton = [];
+    protected List<WSToggleButton?> toolButton = [];
     protected (string Tooltip, string Text)[] Tools = [];
     internal uint pageSize = 10;
 
-    private (IoTextBlock Text, IoToggleButton Button)? filterSelect;
+    private WSToggleButton? filterSelect;
     private IoNumericLeftRight? pageSelect = null, pageSizeSelect = null;
     private Grid? page = null, prevPage = null, grid = null, tGrid = null;
     private WrapPanel? toolbar = null;
 
     protected uint Results = 0, SourceCount = 0;
-
+    internal List<IoEntry> Elements { get; private set; } = [];
     internal event EventHandler<ClickToolEventArgs>? OnClickTool;
-    internal event EventHandler<ClickButtonEventArgs>? OnClickButton;
+    internal event EventHandler<ClickRowEventArgs>? OnClickButton;
 
-    internal (IoTextBlock Text, IoToggleButton Button)? GetFilterSelect => filterSelect;
+    internal WSToggleButton? GetFilterSelect => filterSelect;
 
     private const string F = "Failed IoListBase.";
     internal void Delete() { Swipe.Delete(); MyFilter.Delete(); }
     internal IoListBase(IoPanel Owner, (string, string)[] Tools) {
 
         this.Tools = Tools;
-        this.Owner = Owner;
         grid = new Grid();
-        MyFilter = new(this);
+        MyFilter = new(this.Owner = Owner, this);
         MyFilter.OnUpdate += Update;
         Swipe = new(false, true);
         Swipe.AnimationFinished += (_, _) => {
@@ -139,7 +153,31 @@ internal abstract class IoListBase : IoUserControl {
             App.RefreshPanel(Owner, 1 << MyIndex, false);
     }
     internal abstract bool RefreshData(CancellationToken? cancel, uint startIndex = 0, uint stopIndex = 0);
-    protected virtual void MakeElements() { }
+    protected virtual void MakeElements() {
+        if (MyGen == null)
+            return;
+        uint iElement = 0;
+        (string From, string To)? g = null;
+        foreach (var entry in SourceList) {
+            if (entry.Key is (string From, string To)) {
+                // if we got a group label, remember to put it at top of the next row
+                g = (From, To);
+                continue;
+            }
+            var grid = MyGen.MakeElement(this, iElement, entry);
+            if (grid == null)
+                continue;
+            // Wrap with a group boundary label and add to pageEntries, or just add to pageEntries.
+            if (g != null)
+                MakeGrouped(g, grid);  // Make group label
+            else
+                PageEntries.Add((new UserControl { Content = grid }, null)); // Just a row without a group label
+            ++iElement;
+        }
+        // if we are left with one last boundary, make one last empty element, and attach the label to that
+        if (g != null)
+            MakeGrouped(g, new Grid());
+    }
     //protected virtual UserControl MakeElement() => new();
     internal void ClearUp() {
         foreach (var p in PageEntries) {
@@ -211,13 +249,14 @@ internal abstract class IoListBase : IoUserControl {
         tGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
         // open search filter
-        JustButton(ref filterSelect, "T_SearchFilter", App.L("Filter"), ToggleFilter);
+        JustButton(ref filterSelect, Owner, "T_SearchFilter", App.L("Filter"), ToggleFilter);
         if (filterSelect == null)
             throw new(F + "filterSelect");
-        ToolbarList.Add(filterSelect.Value.Button);
-        Grid.SetColumn(filterSelect.Value.Button, 1);
+        ToolbarList.Add(filterSelect.Button);
+        Grid.SetColumn(filterSelect.Button, 1);
+
         AddChild(tGrid, toolbar);
-        AddChild(tGrid, filterSelect.Value.Button);
+        AddChild(tGrid, filterSelect.Button);
         FinishChildren(tGrid);
 
         // Page:
@@ -263,10 +302,11 @@ internal abstract class IoListBase : IoUserControl {
         // page select
         void pageChanged(object? s, EventArgs e)
             => SetPage((Swipe.Page.X, ((int?)pageSelect?.Value ?? 1) - 1));
-        JustNumeric(ref pageSelect, "T_Page", (ulong)(page + 1), 1, max, 1, 1, "Page", false, App.L("Page") + ": ", " / " + max.ToString() + " ", pageChanged);
+        JustNumeric(ref pageSelect, Owner, "T_Page", (ulong)(page + 1), 1, max, 1, 1, "Page", false, App.L("Page") + ": ", " / " + max.ToString() + " ", pageChanged);
         if (pageSelect == null)
             throw new(F + "pageSelect");
-        ToolbarList.Add(pageSelect);
+        if(max > 1) 
+            ToolbarList.Add(pageSelect);
 
         // page size select
         /*void changePageSize(object? s, EventArgs e) {
@@ -282,12 +322,12 @@ internal abstract class IoListBase : IoUserControl {
             toolButton.Add(null);
         for (int i = 0; i < Tools.Length; ++i) {
 
-            var t = toolButton[i] = MakeSmallButton("CustomTool." + i.ToString(), Tools[i].Tooltip, Tools[i].Text, ClickTool, false, Avalonia.Media.FontWeight.Normal, null, i)
+            var t = toolButton[i] = MakeSmallButton("CustomTool." + i.ToString(), Owner, Tools[i].Tooltip, Tools[i].Text, ClickTool, false, Avalonia.Media.FontWeight.Normal, null, i)
                 ?? throw new(F + "CustomTool");
-            ToolbarList.Add(t.Value.Button);
+            ToolbarList.Add(t.Button);
         }
     }
-    internal virtual void RefreshTemplate<IT>(IEnumerable<IT>? source, Func<object?, string[]> itemT, Func<object?, string[]> filterCommandT) {
+    internal virtual void RefreshTemplate<IT>(IEnumerable<IT>? source, Func<object?, IoGen.Data?> itemT, Func<object?, string[]> filterCommandT) {
         ItemTemplate = itemT;
         FilterCommandTemplate = filterCommandT;
     }
@@ -337,17 +377,34 @@ internal abstract class IoListBase : IoUserControl {
             return;
         prevPage = null; // ???
         pageSize = NewPageSize;
+       
         Swipe.Page = Swipe.PrevPage = (0, 0); // do not swipe page size changes
         pageSizeSelect?.Value = NewPageSize;
-        ulong max = pageSize > 0 ? (Math.Max(1, (ulong)PageEntries.Count) - 1) / pageSize + 1 : 1;
-        SetupToolbar(max, Swipe.Page.Y);
+        ulong max =  pageSize > 0 ? (Math.Max(1, (ulong)PageEntries.Count) - 1) / pageSize + 1 : 1;
+        Swipe.TransformBounds.ExcMaxY = (int)max;
+        MakeMyToolbar(max, Swipe.Page.Y);
         SetupPage();
     }
     internal virtual void ClickTool(object? s, EventArgs e) {
         OnClickTool?.Invoke(this, new ClickToolEventArgs() { FromList = MyIndex, Index = (int?)((Button?)s)?.Tag ?? -1 });
     }
-    internal virtual void ClickButton((IoTextBlock Text, Viewbox View, IoToggleButton Button)? e, int index) {
-        OnClickButton?.Invoke(this, new ClickButtonEventArgs() { FromList = MyIndex, ClickedButton = e, Index = index });
+    internal virtual void ClickRow(object? e, int index) {
+        OnClickButton?.Invoke(this, new ClickRowEventArgs() { FromList = MyIndex, ClickedRow = e, Index = index });
 
+    }
+    protected void MakeGrouped((string From, string To)? g, Grid grid) {
+        // element with a group boundary label above it:
+        var gt = new IoTextBlockInfo { Text = (g.Value.From == "" || g.Value.To == "" ? g.Value.From : g.Value.From + " - ") + g.Value.To, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center };
+        Grid? _groupGrid = null;
+        JustGrid(ref _groupGrid);
+        Grid groupGrid = _groupGrid ?? throw new(F + "Group.Grid");
+        groupGrid.Children.Add(gt);
+        groupGrid.Children.Add(grid);
+        groupGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        groupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        groupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+        Grid.SetRow(grid, 1);
+        PageEntries.Add((new UserControl { Content = groupGrid }, null));
+        g = null;
     }
 }

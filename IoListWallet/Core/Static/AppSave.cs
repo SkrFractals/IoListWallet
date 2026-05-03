@@ -1,5 +1,4 @@
-﻿using IoListWallet.Core.Panels;
-using IoListWallet.IoPanels.Main;
+﻿using IoListWallet.IoPanels.Main;
 using IoListWallet.Structs.Crypto;
 using IoListWallet.Structs.Crypto.Bitcoin;
 using IoListWallet.Structs.Crypto.Cardano;
@@ -18,7 +17,8 @@ using Avalonia;
 using Avalonia.Media;
 using IoListWallet.Core.Dock;
 using Avalonia.Media.Imaging;
-using IoListWallet.IoPanels.Profile;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace IoListWallet.Core.Static;
 public class RotationHost : Decorator {
@@ -96,6 +96,18 @@ internal static class AppSave {
         P_IntroMerge,
         P_BucketIntro
     }
+    internal enum ColorPalette : byte {
+        Red = 0,
+        Yellow = 1,
+        Green = 2,
+        Cyan = 3,
+        Blue = 4,
+        Purple = 5,
+        White = 6,
+        Gray = 7
+    }
+    internal static IImmutableSolidColorBrush[] PaletteColors 
+        = [Brushes.Red, Brushes.Yellow, Brushes.Green, Brushes.Cyan, Brushes.Blue, Brushes.Purple, Brushes.White, Brushes.Gray];
     #endregion
 
     #region Defaults
@@ -117,6 +129,7 @@ internal static class AppSave {
         { typeof(NetworkCardano_MainNet).Name, typeof(NetworkCardano_MainNet) },
         { typeof(NetworkCardano_TestNet).Name, typeof(NetworkCardano_TestNet) }
     };
+
     #endregion
 
     #region AppState (Loaded profile)
@@ -133,7 +146,7 @@ internal static class AppSave {
     internal static ContentControl? AppFakePanel = null;
     internal static IoDockRoot? AppDockRoot = null; // the dock of the AppMainPanel
     internal static Window? DesktopFullscreen = null; // Fullscreen window on desktop mode
-    internal static Window? FakeWindow = null; // Fullscreen window on desktop mode
+    internal static IoFakeWindow? FakeWindow = null; // Fullscreen window on desktop mode
     //Dictionary<string, (int, int)> LastWindowSize; // The last windows size the user did to that Panel type.
     #endregion
 
@@ -167,9 +180,29 @@ internal static class AppSave {
     internal static IoTxo? TryTxo((string TxId, int Vout) txoId) => (GetNetwork?.Txo.TryGetValue(txoId, out var tx) ?? false) ? tx : null;
     internal static bool IsTxo((string TxId, int Vout) txoId, out IoTxo? txo) => (txo = TryTxo(txoId)) != null;
     internal static IMode GetDisplayMode => GetProfile?.InterfaceMode ?? DPro.InterfaceMode ?? IMode.Fullscreen;
+
+    internal static (FontFamily Font, double Size) GetControlFont => (AppSave.GetProfile?.ControlFont ?? AppSave.DPro.ControlFont, AppSave.GetProfile?.ControlFontSize ?? AppSave.DPro.ControlFontSize);
+    internal static (FontFamily Font, double Size) GetInfoFont => (AppSave.GetProfile?.InfoFont ?? AppSave.DPro.InfoFont, AppSave.GetProfile?.InfoFontSize ?? AppSave.DPro.InfoFontSize);
+
     #endregion
 
+
     #region Directories
+    internal static bool OpenDirectory(string path) {
+        if (!Directory.Exists(path))
+            return false;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            Process.Start(new ProcessStartInfo {
+                FileName = path,
+                UseShellExecute = true
+            });
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+            Process.Start("xdg-open", path);
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            Process.Start("open", path);
+        } else return false;
+        return true;
+    }
     internal static string GetRootSaveDir() {
         string baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "IoListWallet");
         if(!App.DisableSaving) 
@@ -239,7 +272,7 @@ internal static class AppSave {
         // if already have a profile...
         if ((IsProfile(profileId, out var p) ? SavePro(p, profileId) // ...save it and try reloading it's unloaded children (also saves if they already loaded too)
             : File.Exists(pathf) ? DeserializeObject(typeof(IoProfile), File.ReadAllText(pathf)) // actually load it
-            : SavePro(new IoProfile() { InterfaceMode = DPro.InterfaceMode }, profileId) // Doesn't exist -> create it
+            : SavePro(new IoProfile() { InterfaceMode = DPro.InterfaceMode, Background = new Bitmap(Path.Combine("Images","background.jpg")) }, profileId) // Doesn't exist -> create it
         ) is IoProfile profile) {
             (SApp.Profiles[profileId] = profile).Dirty = false; // Mark synced, and link directories
             if (batch && profileId != SApp.Profile)

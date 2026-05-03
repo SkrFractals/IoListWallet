@@ -1,6 +1,6 @@
-﻿using IoListWallet.Core;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Panels;
 using IoListWallet.IoPanels.Main;
 using System;
 using System.Threading;
@@ -14,13 +14,13 @@ internal class ProfileSelect : IoListPanel {
         Filters = [ // Search Formats:
             new FilterText() { Name = "Name" } // Name 
         ], SortIndex = 0, SortIndex2 = 0, Increasing = true, Increasing2 = true
-    }, [("T_AddProfile", L("AddProfile"))], 1, -1, 0, null, null, IsSelected);
+    }, new Gen_Buttons(1), [("T_AddProfile", L("AddProfile"))], -1, 0, null, null, IsSelected);
     
     internal override string TrueParentType => MakeK(typeof(MainMenu), "");
     internal override void RefreshData(int job, CancellationToken? token) {
         MyList[0].RefreshTemplate(GetProfiles.Keys,
             // Columns:Select Profile
-            (o) => ["T_SelectProfile", IsProfile((int?)o ?? -1, out var p) && p != null ? p.Name == "" ? L("NoName") : p.Name : ""],
+            (o) => new Gen_Buttons.GenData(["T_SelectProfile", IsProfile((int?)o ?? -1, out var p) && p != null ? p.Name == "" ? L("NoName") : p.Name : ""]),
             // Search Data: Name
             (o) => IsProfile((int?)o ?? -1, out var p) && p != null ? [L(p.Name)] : []); 
         base.RefreshData(job, token);
@@ -28,8 +28,8 @@ internal class ProfileSelect : IoListPanel {
     protected bool IsSelected(object? o) => o is int i && SApp.Profile == i;
     protected override Type? Selected(int fromList) => GetProfile?.Network;
     protected override void PerformSelect(int fromList, object? o) => LoadProfile((int?)o ?? -1);
-    protected override void OnClickButton(object? sender, ClickButtonEventArgs e) => base.OnClickButton(sender, e);
-    protected override void OnClickTool(object? s, ClickToolEventArgs e) {
+    protected override void OnClickRow(object? sender, IoListBase.ClickRowEventArgs e) => base.OnClickRow(sender, e);
+    protected override void OnClickTool(object? s, IoListBase.ClickToolEventArgs e) {
         //switch (e.Index) {
         //    case 0: // Add Profile
         ushort profileId = 0;

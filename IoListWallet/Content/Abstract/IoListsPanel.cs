@@ -1,11 +1,12 @@
 ﻿using Avalonia;
+using IoListWallet.Core;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
 using System;
 using System.Threading;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.Core.Panels;
+namespace IoListWallet.Content.Abstract;
 // A parent for IoPanels containing some SearchList.
 // They have a format of a list of various elements, simple or composite.
 // The have a top toolbar with page selector, and additional custom action buttons (implemented in SearchList's Children).
@@ -129,7 +130,7 @@ internal abstract class IoListsPanel : IoBookPanel {
     internal override void Init(Size available) {
         foreach (var item in MyList) {
             item.OnClickTool += OnClickTool;
-            item.OnClickButton += OnClickButton;
+            item.OnClickButton += OnClickRow;
             item.MyFilter.PrepareLayout(available);
         }
         base.Init(available);
@@ -184,9 +185,9 @@ internal abstract class IoListsPanel : IoBookPanel {
     protected virtual void PerformSelect(int fromList, object? o) { }
     protected virtual object? Selected(int fromList) => null;
     //protected virtual object MakeList<T>(int listIndex) => new IoList<T>(this, []);
-    protected virtual void OnClickTool(object? s, ClickToolEventArgs e) { }
-    protected virtual void OnClickButton(object? s, ClickButtonEventArgs e) {
-        var b = e.ClickedButton ?? throw new("Failed IoListPanel.OnClickButton");
+    protected virtual void OnClickTool(object? s, IoListBase.ClickToolEventArgs e) { }
+    protected virtual void OnClickRow(object? s, IoListBase.ClickRowEventArgs e) {
+        var b = e.ClickedRow as WToggleButton ?? throw new("Failed IoListPanel.OnClickButton");
         Select(e.FromList, b.Button, b.Button.Tag);
         if (CloseOnClick(e.FromList))
             Close();

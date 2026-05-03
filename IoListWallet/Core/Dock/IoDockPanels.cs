@@ -2,7 +2,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using IoListWallet.Core.Dock;
-using IoListWallet.Core.Panels;
 using System;
 using System.Collections.Generic;
 using static IoListWallet.App;

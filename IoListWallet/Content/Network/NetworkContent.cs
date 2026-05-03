@@ -1,5 +1,5 @@
-﻿using IoListWallet.Core.Books;
-using IoListWallet.Core.Panels;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core.Books;
 using System;
 using System.IO;
 using static IoListWallet.App;
@@ -25,17 +25,12 @@ internal class NetworkContent : IoBookPanel {
     private const string F = "Failed NetworkContent.", T = "T_NetworkContent.";
 
     protected override void FillPage(object? sender, IoBook.FillPageEventArgs e) {
+        byte i = 0;
+        string k() => (++i).ToString();
         var s = e.Simulated ? "s." : "";
         switch ((SettingsNetworkPage)Book.Swipe.Page.X) {
             case SettingsNetworkPage.Main:
-
-                // Address Book Editor
-                void clickListAddressBook(object? s, EventArgs e) => OpenRefreshPanel(this, typeof(AddressBook), Key);
                 
-                var listAddressBookButton 
-                    = MakeButton(s + "listAddressBookButton", T + "AddressBook", "Editor", clickListAddressBook)
-                    ?? throw new(F + "listAddressBookButton");
-
                 // Remove Network
                 void clickRemoveNetwork(object? s, EventArgs e) {
                     if (MyNetwork == null)
@@ -49,13 +44,28 @@ internal class NetworkContent : IoBookPanel {
                     // And close myself
                     Close();
                 }
-                var removeNetworkButton 
-                    = MakeButton(s + "removeNetworkButton", T + "RemoveNetwork", "Remove",
-                        clickRemoveNetwork, false, Avalonia.Media.FontWeight.Bold, L("AreYouSure"))
-                    ?? throw new(F + "removeNetworkButton");
-                
-                Book.MakeRow(e, "0", "RemoveNetwork", [(removeNetworkButton.Button, 1)]);
-                Book.MakeRow(e, "1", "AddressBookList", [(listAddressBookButton.Button, 1)]);
+                var networkDeleteButton
+                    = MakeButton(s + "networkDeleteButton", this, T + "NetworkDeleteButton", L("Delete"),
+                        clickRemoveNetwork, false, Avalonia.Media.FontWeight.Bold, L("AreYouSure"));
+
+                // Open Netowrk Save Location Button
+                void clickNetworkSave(object? s, EventArgs e) => OpenDirectory(GetNetworkDir());
+                var networkSaveButton = MakeButton(s + "networkSaveButton", this, T + "NetworkSaveButton",
+                    L("Open"), clickNetworkSave);
+
+                // Address Book Editor
+                void clickListAddressBook(object? s, EventArgs e) => OpenRefreshPanel(this, typeof(AddressBook), Key);
+                var listAddressBookButton
+                    = MakeButton(s + "listAddressBookButton", this, T + "AddressBook", "Editor", clickListAddressBook);
+
+                // Address Book Editor
+                void clickListTickerBook(object? s, EventArgs e) => OpenRefreshPanel(this, typeof(TickerBook), Key);
+                var listTickerBookButton
+                    = MakeButton(s + "listTickerBookButton", this, T + "TickerBook", "Editor", clickListTickerBook);
+
+                Book.MakeRow(e, k(), "NetworkSave", [(networkDeleteButton.Button, 1), (networkSaveButton.Button,1)]);
+                Book.MakeRow(e, k(), "AddressBookList", [(listAddressBookButton.Button, 1)]);
+                Book.MakeRow(e, k(), "TickerBookList", [(listTickerBookButton.Button, 1)]);
 
                 break;
             

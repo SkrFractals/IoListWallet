@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using IoListWallet.Content.Abstract;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Dock;
 using IoListWallet.Core.Static;
@@ -18,8 +19,126 @@ using System.Threading;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.Core.Panels;
+namespace IoListWallet.Core;
 internal abstract class IoPanel : IoUserControl {
+
+    Viewbox MyView = new() { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly };
+
+    internal IoPanel() : base() {
+        Background = GetProfile?.BackgroundBrush;
+        // Content grid:
+        IsVisible = false;
+        //ChildPanels = [];
+        Content = MyGrid = new();
+        MyGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+        // titlebar
+        Titlebar ??= new Grid {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            RowDefinitions = [new RowDefinition(GridLength.Auto)]
+        };
+        titleTextborder.Child = titleText = new IoTextBlockControl() {
+            TextAlignment = TextAlignment.Left, 
+            PaddingMultiplier = 5 };
+
+        titleTextborder.DoubleTapped += TitleBarDoubleTapped;
+        /*Titlebar.PointerPressed += TitleBarPressed;
+        Titlebar.PointerReleased += TitleBarReleased;
+        Titlebar.PointerCaptureLost += TitleBarLost;*/
+        Titlebar.AddHandler(PointerPressedEvent, TitleBarPressed, RoutingStrategies.Tunnel);
+        Titlebar.AddHandler(PointerReleasedEvent, TitleBarReleased, RoutingStrategies.Tunnel);
+        Titlebar.AddHandler(PointerCaptureLostEvent, TitleBarLost, RoutingStrategies.Tunnel);
+        Titlebar.AddHandler(PointerMovedEvent, TitleBarMoved, RoutingStrategies.Tunnel);
+
+        // i want a square column 0 (titleTextborder spanning further to 1, and on top of it my square), the star column 1 (only occupied by titleTextborder), then auto column 2 (occuptied by edit)
+        titleTextBox = MakeSmallTextBox("TitleTextBox", this, "T_TitleTextBox", "", "TypeCustomTitle", TitleTextBox_LostFocus);
+        titleTextContent = new() { 
+            RowDefinitions = [new RowDefinition(GridLength.Star)], 
+            ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)] 
+        };
+        var innerGrid = new Grid {
+            RowDefinitions = { new RowDefinition(GridLength.Star) },
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star) }
+        };
+        square = new Border {
+            Child = new TextBlock() { Text = "" },
+            Background = ConstructionHelpers.MakeLeftShade(),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Width = 20,
+            IsHitTestVisible = false
+        };
+        squareR = new Border {
+            Child = new TextBlock() { Text = "" },
+            Background = ConstructionHelpers.MakeRightShade(),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Width = 20,
+            IsHitTestVisible = false
+        };
+        innerGrid.Children.Add(square);
+        titleTextContent.Children.Add(innerGrid);
+        titleTextContent.Children.Add(titleTextborder);
+        titleTextContent.Children.Add(editTitle = MakeSmallButton("editTitle", this, "T_EditTitle", "✎", EditTitle_Click)?.Button!);
+
+        Grid.SetColumn(editTitle, 2);
+        Grid.SetColumnSpan(titleTextborder, 2);
+
+
+        titleBox = new() { Content = titleTextContent }; // titleBox = titleTextContent / TitleTextBox
+
+        colorPickB = MakeSmallButton("colorPickB", this, "T_ColorPick", "🎨");
+        colorPickB.Button.Flyout = new Flyout() { Content = colorPick };
+        colorPick.ColorChanged += ColorPick_ColorChanged;
+        colorPick.Color = TitleColor;
+        TitleColor = TitleColor; // this is called to perform the actions in the setter
+        pin = MakeToolbarButton(L("Pin"));
+        pin.Click += Pin_Click;
+        pin.AreYouSure = ""; // make it togglable in color
+        pinned = MakeToolbarButton(L("Pinned"));
+        pinned.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
+        pinned.Click += (_, _) => Pinned_Click();
+        ConstructionHelpers.SetTip(pinned, L("T_Pinned"));
+
+        home = MakeToolbarButton(L("Home"));
+        home.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
+        home.Click += (_, _) => Home_Click();
+        home.Text = L("Home");
+        ConstructionHelpers.SetTip(pinned, L("T_Home"));
+        min = MakeToolbarButton("_");
+        min.Click += ConstructionHelpers.CancelToggle;
+        min.Click += MinButton_Click;
+        win = MakeToolbarButton(L("Undock"));
+        win.Click += ConstructionHelpers.CancelToggle;
+        win.Click += WindowButton_Click;
+        back = MakeToolbarButton(L("Back"));
+        back.Click += ConstructionHelpers.CancelToggle;
+        back.Click += Back_Click;
+
+        // overlay
+        TooltipGrid = new() { IsVisible = false };
+        TooltipGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        TooltipGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+        Tooltip = MakeButton("tooltip", this, "", "", (_, _) => TooltipGrid.IsVisible = false);
+        Tooltip.View.StretchDirection = StretchDirection.Both;
+        TooltipGrid.Children.Add(Tooltip.Button);
+        TooltipGrid.Background = new SolidColorBrush(Colors.Black, Tooltip.Button.Opacity = .9);
+        Grid.SetRowSpan(TooltipGrid, 2);
+
+        // overlay
+        Overlay = MakeTextBlock("overlay", this, "", "");
+        OverlayGrid.Children.Add(Overlay.View);
+        OverlayGrid.Children.Add(rects);
+        OverlayGrid.Background = new SolidColorBrush(Colors.Black, Overlay.Text.Opacity = .8);
+        Overlay.Text.IsHitTestVisible = Overlay.View.IsHitTestVisible = false;
+        Grid.SetRowSpan(OverlayGrid, 2);
+
+        // Hold
+        var holdText = MakeTextBlock("holdText", this, "", "???");
+        tooltipHold.Children.Add(holdText.View);
+        holdText.Text.IsHitTestVisible = holdText.View.IsHitTestVisible = false;
+        Grid.SetRowSpan(tooltipHold, 2);
+    }
 
     private const string F = "Failed IoPanel.";
 
@@ -31,7 +150,15 @@ internal abstract class IoPanel : IoUserControl {
     [Save] // Where I have been opened from recently?
     internal string? ParentPanel { get; set { field = value; Dirty(); } } = null;
     [Save] // In multiwindow mode, you can write this in the editable title after lciking the Edittitle button
-    internal string UserTitle { get; set { titleText.Text = (field = value) == "" ? MyTitle : value; titleTextBox?.Text = value; Dirty(); if(notConst) RefreshPanel((typeof(PinnedPanel), ""), true); } } = "";
+    internal string UserTitle { get; set { 
+            titleText.Text = (field = value) == "" || !(GetProfile?.TitleText ?? false) 
+                ? MyTitle 
+                : value;
+            titleTextBox?.Text = field = value;
+            Dirty(); 
+            if(notConst) 
+                RefreshPanel((typeof(PinnedPanel), ""), true); 
+        } } = "";
     [Save] // In multiwindow mode, you set the titlebar color
     internal Color TitleColor { get; set {
             if (GetMyMainPanel()?.Dock.Original == GetK)
@@ -51,7 +178,7 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual string TrueParentType => MakeK(typeof(MainMenu), "");
     internal virtual bool DeleteWhenClosed() => false;
     internal Color GetTitleColor { get => (GetProfile?.TitleUnlock ?? false) ? TitleColor : GetProfile?.TitleColor ?? DPro.TitleColor; }
-    internal string GetTitle() => UserTitle == "" ? MyTitle : UserTitle;
+    internal string GetTitle() => UserTitle == "" || !(GetProfile?.TitleText ?? false) ? MyTitle : UserTitle;
     #endregion
 
     #region Pointers
@@ -65,7 +192,20 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual IoPanel? TrueParent => GetPanel(TrueParentType);
     internal IoDockPanels? ParentDock;
     internal Grid MyGrid { get; private set; }
-    internal Grid OverlayGrid { get; private set; }
+    internal Grid OverlayGrid { get; private set; } = new() {
+        ColumnDefinitions = [new ColumnDefinition(GridLength.Star)],
+        RowDefinitions = [new RowDefinition(GridLength.Star)],
+        IsHitTestVisible = false
+    };
+    internal Grid TooltipGrid { get; private set; }
+    private WToggleButton Tooltip;
+    private Grid tooltipHold = new() {
+        ColumnDefinitions = [new ColumnDefinition(GridLength.Star)],
+        RowDefinitions = [new RowDefinition(GridLength.Star)],
+        Background = new SolidColorBrush(Colors.Black, .8),
+        IsHitTestVisible = false,
+        IsVisible = false
+    };
     protected UserControl MyContent = new();
     //internal Bitmap? ProBackground { get; set { field = value; } } = null;
     internal IoMainPanel? GetMyMainPanel() {
@@ -74,17 +214,23 @@ internal abstract class IoPanel : IoUserControl {
             RootDock = RootDock.Parent;
         return ((IoDockRoot?)RootDock)?.Panel;
     }
+    internal override void OnTooltip(object? s, ToolTipEventArgs e) {
+        Tooltip.Text.Text = L(e.tooltip);
+        TooltipGrid.IsVisible = true;
+    }
+    internal override void OnTooltipStart(object? s, EventArgs e) => tooltipHold.IsVisible = true;
+    internal override void OnTooltipStop(object? s, EventArgs e) => tooltipHold.IsVisible = false;
     //protected void SetParent(IoPanel? parent) {
     //    if (parent?.GetK is not string k || ParentPanel == k)
     //        return;
-        //FromK(ParentPanel)?.ChildPanels.Remove(GetK);
+    //FromK(ParentPanel)?.ChildPanels.Remove(GetK);
     //    ParentPanel = k;
-        //parent?.ChildPanels.Add(GetK);
+    //parent?.ChildPanels.Add(GetK);
     //}
     #endregion
 
     #region Overlay
-    internal (IoTextBlock Text, Viewbox View)? Overlay { get; set; }
+    internal WTextBlock? Overlay { get; set; }
     internal bool IsCursorOver { get => PointerOverOverlay.Count > 0 || IsPointerOver || GetDisplayMode == IMode.Fullscreen; }
     private readonly HashSet<object> PointerOverOverlay = [];
     internal void AddOverlayPointer(object? c) {
@@ -124,7 +270,7 @@ internal abstract class IoPanel : IoUserControl {
     short Hor = 0, Ver = 0;
 
     internal (IoPanel?, IoWindow?) UpdateOverlay(Color c, double dt, double hide, IoWindow? w, PixelPoint dS) {
-        if (Overlay?.Text is not IoTextBlock t /*|| OverlayX?.Text is not TextBlock tx*/)
+        if (Overlay?.Text is not IoTextBlockControl t /*|| OverlayX?.Text is not TextBlock tx*/)
             return (null,null);
 
         var window = TryWindow(GetMyMainPanel()?.MyWindowK ?? -1);
@@ -193,19 +339,20 @@ internal abstract class IoPanel : IoUserControl {
     private ContentControl titleBarContainer = new();
     private IoTextBox? titleTextBox; 
     private Grid titleTextContent; 
-    private IoTextBlock titleText;
+    private IoTextBlockControl titleText;
     private Border titleTextborder = new() { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsHitTestVisible = true, Background = new SolidColorBrush(Colors.Transparent) };
     private IoToggleButton editTitle;
     private ColorPicker colorPick = new();
-    private (IoTextBlock Text, IoToggleButton Button)? colorPickB;
+    private WSToggleButton? colorPickB;
     private IoToggleButton pin; 
     private IoToggleButton min; 
     private IoToggleButton win;
     private IoToggleButton back;
+    //private TextBlock debug = new();
     internal Border square { get; private set; }
     internal Border squareR { get; private set; }
     internal DockPreviewOverlay rects { get; private set; } = new();
-    private (IoComboBox Text, Viewbox View)? DockBook = null;
+    private WComboBox? DockBook = null;
     private IoToggleButton home, pinned;
     private void TitleTextBox_LostFocus(object? s, EventArgs e) {
         titleBox.Content = titleTextContent;
@@ -242,14 +389,15 @@ internal abstract class IoPanel : IoUserControl {
     }
     private void MinButton_Click(object? s, EventArgs e) {
         if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow w)
-            w.WindowState = WindowState.Minimized;
+            w.WindowState = WindowState.Minimized; // TODO maybe returning from here should fix border properties...?
     }
     private void WindowButton_Click(object? s, EventArgs e) {
         var mp = GetMyMainPanel();
         if (mp?.Dock.Original == GetK) {
             // I am the Original, so my titlebar is the window's titlebar, so this will be the un/maximize button
             if (TryWindow(mp?.MyWindowK ?? -1) is IoWindow w)
-                w.Maximize();
+                w.ToggleMaximize();
+            Unmask();
             return;
         }
         // undock back into my original window
@@ -271,10 +419,24 @@ internal abstract class IoPanel : IoUserControl {
     #region Lifetime
     private Point? startPointer;
     //private PixelPoint startPos;
-    private bool AmNotOriginal() => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
+    private bool IsDockedPanel() => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
+    bool unmax;
+    bool IsClickInsideControl(object? source) {
+        while (source is Control c) {
+            if (c is TextBox tb || c is Button sb || c is ComboBox cb)
+                return true;
+            source = c.Parent;
+        }
+        return false;
+    }
     private void TitleBarPressed(object? s, PointerPressedEventArgs e) {
 
-        if (AmNotOriginal()) {
+        if (IsClickInsideControl(e.Source))
+            return;
+
+        var w = TryWindow(OriginalMainWindow);
+        unmax = w != null && (w.WindowState == WindowState.Maximized || w.Snapped);
+        if (IsDockedPanel() || unmax) {
             // TODO might be nice if I made this work, puling a panel out of dock by its titlebar
             if (GetDisplayMode != IMode.MultiWindow)
                 return;
@@ -282,12 +444,10 @@ internal abstract class IoPanel : IoUserControl {
             dragOut = true;
             return;
         }
-
-        if (TryWindow(OriginalMainWindow) is not IoWindow w)
+        if (w == null)
             return;
         startPointer = e.GetPosition(null);
         w.DragStarted();
-        //e.Pointer.Capture(this); // capturing pointers just breaks everything
     }
     void TitleBarMoved(object? s, PointerEventArgs e) {
         var delta = e.GetPosition(null);
@@ -295,150 +455,170 @@ internal abstract class IoPanel : IoUserControl {
         startPointer = start;
         delta -= start;
         if (dragOut) {
-            if (delta.X * delta.X + delta.Y * delta.Y > 10000) {
-                var prev = ParentDock?.Parent;
+
+            // threshold to drag out
+            var screen = AppMainWindow?.Screens.ScreenFromPoint(this.PointToScreen(e.GetPosition(this)));
+            var t = screen == null ? 100 : Math.Clamp((int)(Math.Min(screen.WorkingArea.Width, screen.WorkingArea.Height) * 0.04), 32, 128);
+
+            if (delta.X * delta.X + delta.Y * delta.Y > t*t) {
+                dragOut = false;
+
                 // removes myself from the other window's dock
                 var c = e.Pointer.Captured;
-                startPointer = null;// e.GetPosition(null);
-                var screenPoint = Titlebar.PointToScreen(e.GetPosition(Titlebar/*TopLevel.GetTopLevel(this)!*/));
+                startPointer = null;
+                var screenPoint = Titlebar.PointToScreen(e.GetPosition(Titlebar));
 
-                UndockMe();
-                prev?.RefreshMinSize();
-                // respawn my window and attach myself to it's content
-                OpenRefreshPanel(TrueParent, GetType(), Key);
-                if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is not IoWindow draggedOut)
-                    return;
-                // start dragging the new window (but TitleBarMoved is then not called when the pointer is outside the window, also the TitleBarReleased and TitleBarLost don't get called)
-                // i goess the pointer is still pointing to the pervious one, though the "previous one" is still myself, the same title bar, just moved to be a content elsewhere...
+                IoWindow draggedOut;
+                var prev = ParentDock?.Parent;
+                if (unmax) {
+                    unmax = false;
+                    if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is not IoWindow d)
+                        return;
+                    if (d.Snapped) {
+                        // unsnap
+                        d.Snapped = false;
+                        d.Position = d.MyPosition;
+                        d.Width = d.MyWidth;
+                        d.Height = d.MyHeight;
+                    } else d.ToggleMaximize(); // unmaximize
+                    
+                    draggedOut = d;
+                } else {
+                    // undock
+                    UndockMe();
+                    prev?.RefreshMinSize();
+                    // respawn my window and attach myself to it's content
+                    OpenRefreshPanel(TrueParent, GetType(), Key);
+                    if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is not IoWindow d)
+                        return;
+                    draggedOut = d;
+                }
 
-                //e.Pointer.Capture(this); // capturing pointers just breaks everything
+                // currently i am putting the new window's top left corner to the cursor, mimicking the original position would be hard to clamp because i can't predict how much space will be avaiable in the new titlebar
+                var offset = (int)(GetProfile?.ControlFontSize ?? DPro.ControlFontSize);
+                //draggedOut.Position = new(screenPoint.X - offset/*(int)Math.Min(titlePosition.X, draggedOut.Width / 2)*/, screenPoint.Y - offset/*(int)titlePosition.Y*/);
+                draggedOut.Position = new(screenPoint.X - offset, screenPoint.Y - offset);
+                startPointer = new(offset, offset);// this actually works precisely, and transfers it perfectly no matter how fast i drag
 
-                draggedOut.Position = new(screenPoint.X - 20, screenPoint.Y - 20);
                 draggedOut.DragStarted();
-                e.Pointer.Capture(c);
+                e.Pointer.Capture(c); // this transfers the pointer hold to the new window, but i was warned it might be fragile on other platforms...?
+                
             }
             return;
         }
-        if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging || w.WindowState == WindowState.Maximized)
+        if (IsDockedPanel() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging || w.WindowState == WindowState.Maximized)
             return;
         w.Position += new PixelPoint((int)delta.X, (int)delta.Y);
+        // ghost snap preview window:
+        if (FakeWindow == null)
+            return;
+        FakeWindow.TargetOpacity = SnapLogic(this.PointToScreen(e.GetPosition(this)), FakeWindow, TryWindow(GetMyMainPanel()?.MyWindowK ?? -1)) ? IoFakeWindow.FullOpacity : 0;
+
+        // DEBUG
+        /*debug.Text = "O " + FakeWindow.TargetOpacity.ToString() + " W " + FakeWindow.TargetWidth.ToString() + " H " + FakeWindow.TargetHeight.ToString() + "\n P " + FakeWindow.TargetPosition.ToString()
+            + "\n O " + FakeWindow.TransientOpacity.ToString() + " TW " + FakeWindow.TransientWidth.ToString() + " TH " + FakeWindow.TransientHeight.ToString() + "\n V " + (FakeWindow.IsVisible ? "I" : "X")
+            + "\n O " + FakeWindow.r.RectOpacity.ToString() + " RP " + FakeWindow.r.RectPos.ToString() + " RS " + FakeWindow.r.RectSize.ToString() + "\n TC " + FakeWindow.r.TitleColor.ToString()
+            + "\n Child " + ((Panel)FakeWindow.Content).Children.Count.ToString();*/
+
     }
     private void TitleBarReleased(object? s, PointerReleasedEventArgs e) => 
-        EndDrag(e.Pointer);
+        EndDrag(e.Pointer, this.PointToScreen(e.GetPosition(this)));
     private void TitleBarLost(object? s, PointerCaptureLostEventArgs e) => 
-        EndDrag(e.Pointer);
+        EndDrag(e.Pointer, null);
     private void TitleBarDoubleTapped(object? s, TappedEventArgs e) {
-        if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w)
+        if (IsDockedPanel() || TryWindow(OriginalMainWindow) is not IoWindow w)
             return;
         w.DoubleTap();
     }
-    private void EndDrag(IPointer e) {
-        dragOut = false;
-        //e.Capture(null); // capturing pointers just breaks everything
-        if (AmNotOriginal() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging)
+    private void EndDrag(IPointer e, PixelPoint? EndPoint) {
+        dragOut = unmax = false;
+        FakeWindow?.IsVisible = false;
+        if (IsDockedPanel() || TryWindow(OriginalMainWindow) is not IoWindow w || !w.isDragging)
             return;
         w.DragEnded();
+        if (EndPoint == null || w.WindowState != WindowState.Normal || w.Snapped)
+            return;
+        SnapLogic(EndPoint.Value, w);
     }
-    internal IoPanel() : base() {
-        Background = GetProfile?.BackgroundBrush;
-        // Content grid:
-        IsVisible = false;
-        //ChildPanels = [];
-        Content = MyGrid = new();
-        MyGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+    private Avalonia.Platform.Screen? screen = null;
+    private bool SnapLogic(PixelPoint pix, Window win, IoWindow? refWindow = null) {
+        var _screen = win.Screens.ScreenFromPoint(pix);
+        if (_screen != null)
+            screen = _screen;
+        if(screen == null)
+            return true;
+        var a = screen.WorkingArea;
+        // clamping because the very edge might be glitchy
+        var loc = new PixelPoint(Math.Clamp(pix.X - a.X, 1, a.Width - 2), Math.Clamp(pix.Y - a.Y, 1, a.Height - 2));
 
-        // titlebar
-        Titlebar ??= new Grid {
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            RowDefinitions = [new RowDefinition(GridLength.Auto)]
-        };
-        titleTextborder.Child = titleText = new IoTextBlock() { Text = "", TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-       
-        titleTextborder.DoubleTapped += TitleBarDoubleTapped;
-        Titlebar.PointerPressed += TitleBarPressed;
-        Titlebar.PointerReleased += TitleBarReleased;
-        Titlebar.PointerCaptureLost += TitleBarLost;
-        Titlebar.AddHandler(PointerMovedEvent, TitleBarMoved, RoutingStrategies.Tunnel);
+        // W,H - division of the remaining width and height (2 will stretch from the location halway to the border, 1 will fill towards the border)
+        bool Snap(PixelPoint L, int W, int H) {
+            var w = (a.Right - L.X) / W;
+            var h = (a.Bottom - L.Y) / H;
+            PixelPoint toPos = L;
+            double toW = w, toH = h;
 
-        // i want a square column 0 (titleTextborder spanning further to 1, and on top of it my square), the star column 1 (only occupied by titleTextborder), then auto column 2 (occuptied by edit)
-        titleTextBox = MakeSmallTextBox("TitleTextBox", "T_TitleTextBox", "", "TypeCustomTitle", TitleTextBox_LostFocus) ?? throw new(F + "TitleTextBox");
-        titleTextContent = new() { RowDefinitions = [new RowDefinition(GridLength.Auto)], ColumnDefinitions = [new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)] };
-        var innerGrid = new Grid {
-            RowDefinitions = { new RowDefinition(GridLength.Star) },
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star) }
-        };
-        square = new Border {
-            Child = new TextBlock() { Text =""},
-            Background = ConstructionHelpers.MakeLeftShade(),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Width = 20,
-            IsHitTestVisible = false
-        };
-        squareR = new Border {
-            Child = new TextBlock() { Text = "" },
-            Background = ConstructionHelpers.MakeRightShade(),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Width = 20,
-            IsHitTestVisible = false
-        };
-        innerGrid.Children.Add(square);
-        titleTextContent.Children.Add(innerGrid);
-        titleTextContent.Children.Add(titleTextborder);
-        titleTextContent.Children.Add(editTitle = MakeSmallButton("editTitle", "T_EditTitle", "✎", EditTitle_Click)?.Button!);
-        
-        Grid.SetColumn(editTitle, 2);
-        Grid.SetColumnSpan(titleTextborder, 2);
-
-
-        titleBox = new() { Content = titleTextContent }; // titleBox = titleTextContent / TitleTextBox
-
-        colorPickB = MakeSmallButton("colorPickB", "T_ColorPick", "🎨") ?? throw new("colorPickB");
-        colorPickB.Value.Button.Flyout = new Flyout() { Content = colorPick };
-        colorPick.ColorChanged += ColorPick_ColorChanged;
-        colorPick.Color = TitleColor;
-        TitleColor = TitleColor; // this is called to perform the actions in the setter
-        pin = MakeToolbarButton(L("Pin"));
-        pin.Click += Pin_Click;
-        pin.AreYouSure = ""; // make it togglable in color
-        pinned = MakeToolbarButton(L("Pinned"));
-        pinned.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
-        pinned.Click += (_, _) => Pinned_Click();
-        ConstructionHelpers.SetTip(pinned, L("T_Pinned"));
-
-        home = MakeToolbarButton(L("Home"));
-        home.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
-        home.Click += (_, _) => Home_Click();
-        home.Content = L("Home");
-        ConstructionHelpers.SetTip(pinned, L("T_Home"));
-        min = MakeToolbarButton("_");
-        min.Click += ConstructionHelpers.CancelToggle;
-        min.Click += MinButton_Click;
-        win = MakeToolbarButton(L("Undock"));
-        win.Click += ConstructionHelpers.CancelToggle;
-        win.Click += WindowButton_Click;
-        back = MakeToolbarButton(L("Back"));
-        back.Click += ConstructionHelpers.CancelToggle;
-        back.Click += Back_Click;
-
-        // overlay
-        OverlayGrid = new();
-        OverlayGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-        OverlayGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
-        Overlay = MakeTextBlock("overlay", "", "") ?? throw new(F + "overlay");
-        //OverlayX = MakeTextBlock("overlayX", "", "·") ?? throw new(F + "overlayX");
-        OverlayGrid.Children.Add(Overlay.Value.View);
-        //OverlayGrid.Children.Add(OverlayX.Value.View);
-        OverlayGrid.Children.Add(rects);
-        OverlayGrid.Background = new SolidColorBrush(Colors.Black, Overlay.Value.Text.Opacity = .8);
-        //OverlayX.Value.Text.IsHitTestVisible = OverlayX.Value.View.IsHitTestVisible 
-        Overlay.Value.Text.IsHitTestVisible = Overlay.Value.View.IsHitTestVisible 
-            = OverlayGrid.IsHitTestVisible = false;
-        Grid.SetRowSpan(OverlayGrid, 2);
-
-       
-            
+            if (win is IoWindow iw) {
+                if (W == 1 && H == 1 && L == a.Position) {
+                    iw.ToggleMaximize();
+                    return true;
+                }
+                iw.Snapped = true;
+                // remember original size to return to when unsnapped
+                iw.MyPosition = win.Position;
+                iw.MyWidth = win.Width;
+                iw.MyHeight = win.Height;
+            } else if (win is IoFakeWindow fw && refWindow != null) {
+                fw.SetColor(FromK(refWindow.MyMainPanel.Dock.Original)?.TitleColor ?? Colors.White);
+                fw.TargetOpacity = 0.5;
+                fw.TargetPosition = L;
+                fw.TargetWidth = L.X + w;
+                fw.TargetHeight = L.Y + h;
+                if (/*fw.WindowState != WindowState.Normal*/!fw.IsVisible) {
+                    fw.IsVisible = true;
+                    //fw.Opacity = 1;
+                    //fw.WindowState = WindowState.Normal;
+                    fw.TransientPosition = refWindow.Position;
+                    fw.TransientWidth = refWindow.Position.X + refWindow.Width;
+                    fw.TransientHeight = refWindow.Position.Y + refWindow.Height;
+                } else if (fw.TransientPosition != fw.TargetPosition 
+                    || fw.TransientWidth != fw.TargetWidth 
+                    || fw.TransientHeight != fw.TargetHeight) {
+                    toPos = new(Math.Min(fw.Position.X, L.X), Math.Min(fw.Position.Y, L.Y));
+                    toW = Math.Max(w + L.X - toPos.X, fw.Width) ;
+                    toH = Math.Max(h + L.Y - toPos.Y, fw.Height);
+                }
+            }
+            if (win.Position != toPos)
+                win.Position = toPos;
+            if (win.Width != toW)
+                win.Width = toW;
+            if (win.Height != toH)
+                win.Height = toH;
+            return true;
+        }
+        var t = Math.Clamp((int)(Math.Min(a.Width, a.Height) * 0.02), 16, 64); // threshold to snap
+        if (loc.X < t) {
+            if (loc.Y < t)
+                return Snap(a.Position, 2, 2); // top-left
+            else if (loc.Y >= a.Height - t)
+                return Snap(new(a.X, a.Y + a.Height / 2), 2, 1); // bottom-left
+            else {
+                return Snap(a.Position, 2, 1); // left
+                // TODO  maybe also trigger that system picker of what to put on the right like windows does?
+            }
+        } else if (loc.X >= a.Width - t) {
+            if (loc.Y < t)
+                return Snap(new(a.X + a.Width / 2, a.Y), 1, 2); // top-right
+            else if (loc.Y >= a.Height - t) {
+                return Snap(new(a.X + a.Width / 2, a.Y + a.Height / 2), 1, 1); // bottom-right
+            } else {
+                return Snap(new(a.X + a.Width / 2, a.Y), 1, 1); // right
+                // TODO maximize to right half (and maybe also trigger that system picker of what to put on the left like windows does?)
+            }
+        } else if (loc.Y < t)
+            return Snap(a.Position, 1, 1); // total maximize
+        return false;
     }
     internal virtual void Init(Size available) { }
     internal virtual void Snapshot() { }
@@ -507,10 +687,11 @@ internal abstract class IoPanel : IoUserControl {
         }
         ParentPanel = Parent?.GetK;
     }
+    internal void Unmask() => UpdateOverlay(Colors.Transparent, 1000, -(GetProfile?.UnMaskTime ?? DPro.UnMaskTime), null, new(0, 0));
     internal virtual IoPanel OnOpen(bool initial = false) {
         // Focus on me:
         ParentDock?.Selected = 0;
-        UpdateOverlay(Colors.Transparent, 1000, -(GetProfile?.UnMaskTime ?? DPro.UnMaskTime), null, new(0, 0));
+        Unmask();
         IsVisible = true;
         if (ParentDock == null)
             return this;
@@ -621,7 +802,7 @@ internal abstract class IoPanel : IoUserControl {
         }
 
         main.DockHost.Content = main.Dock.Build(true);
-       
+        Unmask();
     }
     internal void UndockMe(bool BackToWindow = false) {
         if (Parent is Panel p)
@@ -719,6 +900,7 @@ internal abstract class IoPanel : IoUserControl {
         //if(this is not MainMenu)
         //    myMain?.DockHost.Content = myMain.Dock.Build();
         Dirty();
+        Unmask();
     }
     // call this to close the panel
     internal virtual void Close(bool goBack = true) {
@@ -730,11 +912,12 @@ internal abstract class IoPanel : IoUserControl {
             AppClose();
             return;
         }
-
+        var M = GetMyMainPanel();
         var Dock = ParentDock;
         var prev = Dock?.Parent;
         UndockMe();
-        prev?.RefreshMinSize();
+        if(M?.Dock.Original != GetK)
+            prev?.RefreshMinSize();
         int refreshMask;
         if (goBack) {
             if (GetDisplayMode == IMode.MultiWindow)
@@ -756,7 +939,7 @@ internal abstract class IoPanel : IoUserControl {
         // unfreezes everything if i was modal
         static void Unlock(Window w) {
             w.IsEnabled = true;
-            w.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Arrow);
+            w.Cursor = new Cursor(StandardCursorType.Arrow);
         }
         if (IsModal() && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             if ((FromK(ParentPanel)?.IsModal() ?? false) && TryWindow(FromK(ParentPanel)?.GetMyMainPanel()?.MyWindowK ?? -1) is Window parentWindow)
@@ -801,11 +984,14 @@ internal abstract class IoPanel : IoUserControl {
     #endregion
 
     #region Layout
-    internal void UpdateMax() =>
-        win.Content = L(GetMyMainPanel()?.Dock.Original == GetK
+    internal void UpdateMax() {
+        win.Text = L(GetMyMainPanel()?.Dock.Original == GetK
             && TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow w
             && w.WindowState == WindowState.Normal
             ? "🗖" : "⧉");
+        dragOut = unmax = false;
+        startPointer = null;
+    }
     internal void SetTitle() {
         MyTitle = L(GetType().Name) + CustomTitle();
         var t = GetTitle();
@@ -855,7 +1041,7 @@ internal abstract class IoPanel : IoUserControl {
         string sPin = ispinned ? "Unpin" : "Pin";
         pin.FontWeight = ispinned ? FontWeight.Bold : FontWeight.Regular;
         //pin.Content = L(sPin);
-        pin.Content = "📌";
+        pin.Text = "📌";
         pin.IsChecked = ispinned;
         ConstructionHelpers.SetTip(pin, L("T_" + sPin));
 
@@ -870,9 +1056,13 @@ internal abstract class IoPanel : IoUserControl {
         Titlebar.ColumnDefinitions.Clear();
         MyGrid.RowDefinitions.Clear();
         if (mw) {
-            back.Content = "X";
-            home.Content = "🏠︎";
-            pinned.Content = "🕮";
+            titleText.Text = UserTitle == "" || !profile.TitleText ? MyTitle : UserTitle;
+
+            back.Text = "X";
+            home.Text = "🏠︎";
+            pinned.Text = "🕮";
+
+            editTitle.IsVisible = profile.TitleText;
 
             Titlebar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
             Titlebar.Children.Add(titleBox); // Title + EditTitle
@@ -880,17 +1070,17 @@ internal abstract class IoPanel : IoUserControl {
 
             if (colorPickB != null && profile.TitleUnlock) {
                 Titlebar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-                Titlebar.Children.Add(colorPickB.Value.Button); // ColorPick
-                Grid.SetColumn(colorPickB.Value.Button, col++);
+                Titlebar.Children.Add(colorPickB.Button); // ColorPick
+                Grid.SetColumn(colorPickB.Button, col++);
             }
         } else {
-            pin.Content = L(sPin);
-            back.Content = L(sBack);
-            home.Content = L("Home");
-            pinned.Content = L("Pinned");
+            pin.Text = L(sPin);
+            back.Text = L(sBack);
+            home.Text = L("Home");
+            pinned.Text = L("Pinned");
         }
         var gl = mw ? GridLength.Auto : GridLength.Star;
-        if (!IsModal()) {
+        if (!IsModal() && profile.Pins) {
 
             Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
             Titlebar.Children.Add(pin); // Pin/Unpin
@@ -908,16 +1098,19 @@ internal abstract class IoPanel : IoUserControl {
 
         if (!(IsModal() || amNotOriginal)) {
 
-            // Pinned
-            Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
-            Titlebar.Children.Add(pinned);
-            Grid.SetColumn(pinned, col++);
-
-            // Home button anywhere that isn't already home:
-            if (AppMainPanel != GetMyMainPanel()) {
+            if (profile.Pins) {
+                // Pinned
                 Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
-                Titlebar.Children.Add(home);
-                Grid.SetColumn(home, col++);
+                Titlebar.Children.Add(pinned);
+                Grid.SetColumn(pinned, col++);
+            }
+            if (profile.Homes) {
+                // Home button anywhere that isn't already home:
+                if (AppMainPanel != GetMyMainPanel()) {
+                    Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
+                    Titlebar.Children.Add(home);
+                    Grid.SetColumn(home, col++);
+                }
             }
         }
 
@@ -975,23 +1168,25 @@ internal abstract class IoPanel : IoUserControl {
                     c.IsDropDownOpen ^= true; // clicked the null button: toggle the dropdown
             }
 
-            DockBook = MakeBitmaskBox("panelBook", "T_PanelBook", ToPage,
-                new FuncDataTemplate<byte?>((bit, _) => GetComboButtons("panelBook", "", bit, ParentDock, onToggleBook)), "flat")
-                ?? throw new(F + "panelBook");
+            DockBook = MakeBitmaskBox("panelBook", this, "T_PanelBook", ToPage,
+                new FuncDataTemplate<byte?>((bit, _) => GetComboButtons(this, "panelBook", "", bit, ParentDock, onToggleBook)), "flat");
             //panelBook.View.Stretch = Stretch.None;
             //panelBook.Combo.Padding = new Thickness(0);
             //panelBook.Combo.MinWidth = 0;
             //panelBook.Combo.Width = panelBook.Combo.MinWidth;
             Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
-            Titlebar.Children.Add(DockBook.Value.View); // Book
+            Titlebar.Children.Add(DockBook.View); // Book
             Grid.SetColumn(squareR, col);
-            Grid.SetColumn(DockBook.Value.View, col++);
+            Grid.SetColumn(DockBook.View, col++);
             
         }
 
         MyGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         MyGrid.Children.Add(MyContent);
+        MyGrid.Children.Add(TooltipGrid);
         MyGrid.Children.Add(OverlayGrid);
+        MyGrid.Children.Add(tooltipHold);
+        //MyGrid.Children.Add(debug);
     }
     internal virtual void RefreshData(int job, CancellationToken? cancel) { }
     #endregion

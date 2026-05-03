@@ -11,10 +11,12 @@ internal class IoColorButton : Button {
 
     internal event EventHandler<ColorChangedEventArgs>? ClickGuarded;
 
+    internal IoTooltips Tooltip;
     internal Color? isColor;
 
     private EventHandler<ColorChangedEventArgs>? response = null;
-    ColorPicker c;
+    private ColorPicker c;
+
     internal void SetResponse(EventHandler<ColorChangedEventArgs>? newResponse) {
         if (newResponse != null) {
             if (response != null)
@@ -23,12 +25,8 @@ internal class IoColorButton : Button {
             ClickGuarded += response = newResponse;
         }
     }
-
-    // doesn't work...
-    //internal bool Enabled { get => IsEnabled; set { Cursor = new Cursor((IsEnabled = value) ? StandardCursorType.Hand : StandardCursorType.No); } }
-
-
     internal IoColorButton() : base() {
+        Tooltip = new(this, false);
         Cursor = new Cursor(StandardCursorType.Hand);
         //Click += GuardE;
         PropertyChanged += (_, e) => {
@@ -37,21 +35,29 @@ internal class IoColorButton : Button {
                 CornerRadius = new CornerRadius(bounds.Height / 4);
             }
         };
-        // when it's here th eflyout and picker shows out, but the picker disappears when i touch it
+        // when it's here the flyout and picker shows out, but the picker disappears when i touch it
         c = new() { Color = isColor ?? AppSave.DPro.TitleColor };
         c.ColorChanged += ColorChanged;
 
         Flyout = new Flyout() { Content = c };
     }
-    //private void GuardE(object? sender, RoutedEventArgs e) {
-    //    c.ColorChanged += ColorChanged;
-        // when it's here the flyout won't even appear
-        //ColorPicker c = new() { Color = isColor ?? AppSave.DPro.TitleColor };
-        //Flyout = new Flyout() { Content = c };
-    //}
     private void ColorChanged(object? sender, ColorChangedEventArgs e) {
         ClickGuarded?.Invoke(sender, e);
         c.ColorChanged -= ColorChanged;
     }
+    protected override void OnPointerReleased(PointerReleasedEventArgs e) {
+        if (Tooltip.Release()) {
+            e.Handled = true;
+            return;
+        }
+        base.OnPointerReleased(e);
+    }
     protected override Type StyleKeyOverride => typeof(ToggleButton);
+}
+internal class WColorButton(IoTextBlockBase text, Viewbox view, IoColorButton button) : WSColorButton(text, button) {
+    internal Viewbox View = view;
+}
+internal class WSColorButton(IoTextBlockBase text, IoColorButton button) {
+    internal IoTextBlockBase Text = text;
+    internal IoColorButton Button = button;
 }

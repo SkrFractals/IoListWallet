@@ -1,5 +1,5 @@
-﻿using IoListWallet.Core.Books;
-using IoListWallet.Core.Panels;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core.Books;
 
 namespace IoListWallet.IoPanels.Main;
 internal class MessagePanel : IoBookPanel {
@@ -13,7 +13,7 @@ internal class MessagePanel : IoBookPanel {
     private const string F = "Failed Message.", T = "T_Message.";
     protected override void FillPage(object? sender, IoBook.FillPageEventArgs e) {
         var s = e.Simulated ? "s." : "";
-        Book.MakeRow(e, "0", "", [(MakeTextBlock(s + "null", "", App.L(Key))?.View!, 1)]);
+        Book.MakeRow(e, "0", "", [(MakeTextBlock(s + "null", this, "", App.L(Key))?.View!, 1)]);
         base.FillPage(sender, e);
     }
 }

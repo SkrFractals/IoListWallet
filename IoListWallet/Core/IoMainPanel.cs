@@ -3,7 +3,6 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Dock;
-using IoListWallet.Core.Panels;
 using IoListWallet.Core.Static;
 using static IoListWallet.App;
 
@@ -22,7 +21,7 @@ internal class IoMainPanel : IoUserControl {
     internal ContentControl DockHost { get; private set; }
     internal ContentControl Titlebar { get; private set; }
     internal Grid OverlayGrid { get; private set; }
-    internal (IoTextBlock Text, Viewbox View)? OverlayX { get; set; }
+    internal WTextBlock? OverlayX { get; set; }
     private Grid grid;
     internal bool shrinkRefresh = false;
     public IoMainPanel() {
@@ -37,10 +36,10 @@ internal class IoMainPanel : IoUserControl {
         OverlayGrid = new();
         OverlayGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
         OverlayGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
-        OverlayX = MakeTextBlock("overlayX", "", "·") ?? throw new("overlayX");
-        OverlayGrid.Children.Add(OverlayX.Value.View);
-        OverlayGrid.Background = new SolidColorBrush(Colors.Black, OverlayX.Value.Text.Opacity = 1);
-        OverlayX.Value.Text.IsHitTestVisible = OverlayX.Value.View.IsHitTestVisible
+        OverlayX = MakeTextBlock("overlayX", this, "", "·");
+        OverlayGrid.Children.Add(OverlayX.View);
+        OverlayGrid.Background = new SolidColorBrush(Colors.Black, OverlayX.Text.Opacity = 1);
+        OverlayX.Text.IsHitTestVisible = OverlayX.View.IsHitTestVisible
             = OverlayGrid.IsHitTestVisible = false;
         OverlayGrid.IsVisible = false;
         Grid.SetRowSpan(OverlayGrid, 2);

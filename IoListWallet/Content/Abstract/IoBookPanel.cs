@@ -1,8 +1,9 @@
 ﻿using Avalonia;
-using System;
 using IoListWallet.Core.Books;
+using IoListWallet.Core;
+using System;
 
-namespace IoListWallet.Core.Panels;
+namespace IoListWallet.Content.Abstract;
 // Parent for any settings-type panel - the format is is a list of Label+[Controls] where you set various properties.
 // It can have a top toolbar acting as "tabs"/"groups"
 
@@ -13,7 +14,7 @@ internal abstract class IoBookPanel : IoPanel {
     protected virtual string[] GetPageNames() => [""];
 
     internal IoBookPanel() : base(){
-        Book = new IoBook {
+        Book = new IoBook(this) {
             PageNames = GetPageNames()
         };
         MyContent.Content ??= Book;
@@ -45,11 +46,11 @@ internal abstract class IoBookPanel : IoPanel {
     }
     protected virtual void FillPage(object? sender, IoBook.FillPageEventArgs e) { /*UpdateWindow();*/ }
     protected virtual void OnBookClose(object? sender, EventArgs e) {
-        Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
+        //Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
         Close();
     }
     internal override IoPanel OnOpen(bool initial = false) {
-        Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
+        //Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
         return base.OnOpen(initial);
     }
     protected override string CustomTitle() {

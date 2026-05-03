@@ -10,7 +10,6 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using IoListWallet.Core;
 using IoListWallet.Core.Basic;
-using IoListWallet.Core.Panels;
 using IoListWallet.IoPanels.Main;
 using IoListWallet.Structs.Crypto;
 using System;
@@ -21,10 +20,13 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using static IoListWallet.Core.Static.AppSave;
 using IoListWallet.Core.Dock;
+using IoListWallet.Content.Abstract;
 
 namespace IoListWallet;
 
 public partial class App : Application {
+
+    internal static Random rand = new(DateTime.Now.Microsecond);
 
     internal static event EventHandler<EventArgs>? SwipeCaptured = null;
 
@@ -50,16 +52,7 @@ public partial class App : Application {
         Interval = TimeSpan.FromMilliseconds(20),
         IsEnabled = true
     };
-    // Failed attempts at disabling selecting combo buttons:
-    /*internal static void DontSelectToggles(object? s, EventArgs e) => ((IoComboBox?)s)?.SelectedItem = null;
-    internal static ControlTheme ToggleComboTheme = new (typeof(ComboBoxItem)) {
-        Setters = {  
-            new Setter(InputElement.IsHitTestVisibleProperty, false),
-            new Setter(InputElement.FocusableProperty, false)
-        }
-    };*/
 
-    //internal event EventHandler<EventArgs>? PointerLost = null;
     internal static void FireSwipeCaptured(IoSwipe s) => SwipeCaptured?.Invoke(s, new EventArgs());
     
     internal static void UnpressNumerics(object? c){
@@ -89,12 +82,9 @@ public partial class App : Application {
             OffsetY = Radius
         };
     }
-    internal static void SetTextShadows(int Radius) {
-       /* Current?.Resources["shadow.1"] = Radius >= 1;
-        Current?.Resources["shadow.2"] = Radius >= 2;
-        Current?.Resources["shadow.3"] = Radius >= 3;*/
-    }
-    
+    internal static void SetTextShadows(int Radius) 
+        => Current?.Resources["ShadowQuality"] = Radius - 1;
+   
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted() {
@@ -110,72 +100,19 @@ public partial class App : Application {
                 new Setter(Visual.EffectProperty, new DynamicResourceExtension("ButtonShadow"))
             }
         });
-
-        /*Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.1")) {
-            Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.1")) } 
+        Styles.Add(new Style(x => x.Is<IoTextBlockBase>()) {
+            Setters = {
+                new Setter(IoTextBlockBase.ShadowQualityProperty,
+                new DynamicResourceExtension("ShadowQuality")) }
         });
-        Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.2")) {
-            Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.2")) } 
-        });
-        Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.3")) {
-            Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.3")) }
-        });*/
-
-
-
-        /*shadowVisible = new Style(x => x.OfType<TextBlockControl>().Class("shadow")) {
-            Setters =
-    {
-        new Setter(Visual.IsVisibleProperty, true)
-    }
-        };
-        shadowVisibleI = new Style(x => x.OfType<TextBlockInfo>().Class("shadow")) {
-            Setters =
-   {
-        new Setter(Visual.IsVisibleProperty, true)
-    }
-        };
-
-        shadowHidden = new Style(x => x.OfType<TextBlockControl>().Class("shadow")) {
-            Setters =
-            {
-        new Setter(Visual.IsVisibleProperty, false)
-    }
-        };
-        shadowHiddenI = new Style(x => x.OfType<TextBlockInfo>().Class("shadow")) {
-            Setters =
-            {
-        new Setter(Visual.IsVisibleProperty, false)
-    }
-        };*/
-        /*DropShadowEffect[] shadow = [
-            new() { BlurRadius = 1, OffsetX = 1, OffsetY = 1 },
-            new() { BlurRadius = 2, OffsetX = 2, OffsetY = 2 },
-            new() { BlurRadius = 4, OffsetX = 3, OffsetY = 3 }];
-        Shadows.Add(new Setter(Visual.EffectProperty, null));
-        for (int i = 0; i < 3; ++i) {
-            var si = shadow[i];
-            si.Color = Colors.Black;
-            si.Opacity = 1.0;
-            Shadows.Add(new Setter(Visual.EffectProperty, si));
-        }
-        Styles.Add(ShadowTexts.Level = new Style(x => x.Is<TextBlock>()) { Setters = {
-            new Setter(TextElement.FontFamilyProperty, new DynamicResourceExtension("ControlFontFamily")),
-            new Setter(TextElement.FontSizeProperty, new DynamicResourceExtension("ControlFontSize"))
-            }});
-        Styles.Add(ShadowButtons.Level = new Style(x => x.Is<Button>()) {
-            Setters = { }
-        });*/
-
-        //ShadowTexts.Level.Add(new Style(x => x.OfType<TextBlock>()) { });
-        //ShadowButtons.Level.Add(new Style(x => x.OfType<Button>()) { });
-        //for (int i = 0; i < 3; ++i) {
-        //    ShadowTexts.Level.Add(new Style(x => x.OfType<TextBlock>()) { Setters = { shadow[i] } });
-        //    ShadowButtons.Level.Add(new Style(x => x.OfType<Button>()) { Setters = { shadow[i] } });
-        //}
-        //var shadowButNo = new Style(x => x.OfType<Button>()) { };
 
         // yuge Control Text
+        /*Styles.Add(new Style(x => x.Is<IoTextBlockControl>()) {
+            Setters = {
+                new Setter(IoTextBlockBase.FontFamilyProperty, new DynamicResourceExtension("ControlFontFamily")),
+                new Setter(IoTextBlockBase.FontSizeProperty, new DynamicResourceExtension("ControlFontSize"))
+            }
+        });*/
         Styles.Add(new Style(x => x.Is<TextBlock>().Class("control")) {
             Setters = {
             new Setter(TextElement.FontFamilyProperty, new DynamicResourceExtension("ControlFontFamily")),
@@ -190,38 +127,20 @@ public partial class App : Application {
         }
         });
 
-        // TODO figure out how to rotate tooltips and combobox selections corectly:
-        // rotates tooltips just like that "PopupRoot" one. at 90 degrees: If taller (more lines) then they get show nearly perfectly, if, long lines, they get cut.
-        /*Styles.Add(new Style(x => x.Is<ToolTip>()) {
-            Setters = {
-            new Setter(Visual.ClipToBoundsProperty, false),
-            new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
-            new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
-        }
-        });*/
-        // no effect on tooltips, combobox selectors are still right side up, but instead of opening down from the box, they open upward
-        /*Styles.Add(new Style(x => x.Is<Popup>()) {
-            Setters = {
-            new Setter(Visual.ClipToBoundsProperty, false),
-            new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
-            new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
-        }
-        });*/
-        // this would also rotate tooltips (twice if alreadyrotating "ToolTip" style), and it crashes combobo selectors
-        /*Styles.Add(new Style(x => x.Is<PopupRoot>()) {
-            Setters = {
-            new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
-            new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
-        }
-        });*/
-
         // smol Info Text
+        /*Styles.Add(new Style(x => x.Is<IoTextBlockInfo>()) {
+            Setters = {
+                new Setter(IoTextBlockBase.FontFamilyProperty, new DynamicResourceExtension("InfoFontFamily")),
+                new Setter(IoTextBlockBase.FontSizeProperty, new DynamicResourceExtension("InfoFontSize"))
+            }
+        });*/
         Styles.Add(new Style(x => x.Is<TextBlock>().Class("info")) {
             Setters = {
             new Setter(TextElement.FontFamilyProperty, new DynamicResourceExtension("InfoFontFamily")),
             new Setter(TextElement.FontSizeProperty, new DynamicResourceExtension("InfoFontSize"))
         }
         });
+
         // stop buttons from shrinking when clicked
         Styles.Add(new Style(x => x.OfType<ToggleButton>().Class(":pressed")) {
             Setters = {
@@ -240,8 +159,6 @@ public partial class App : Application {
         };
         Styles.Add(flatComboStyle);
 
-        // setup cached tuple converter
-        //AppSave.tupleOptions.Converters.Add(new GeneralTupleConverter());
         // Load Locales:
         FindLocales();
         // Prepare IoPanel Type dictionaries
@@ -317,18 +234,30 @@ public partial class App : Application {
         SingleView?.MainView = AppFakePanel;
         if (Desktop != null) {
             if (FakeWindow == null) {
-                FakeWindow = new Window {
+                FakeWindow = new IoFakeWindow { 
                     Width = 120,
                     Height = 120,
-                    Content = AppFakePanel,
                     CanResize = false,
-                    IsVisible = false,
+                    //ExtendClientAreaToDecorationsHint = true, // this makes weird borders visible but for now at least i know the window is actually there
+                    ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome,
+                    SystemDecorations = SystemDecorations.None,
                     WindowState = WindowState.Minimized,
-                    ShowInTaskbar = false
-                    //Width = 120 // i usedthis to confirm the extra window is realyl fakewindow
+                    ShowInTaskbar = false,
+                    Opacity = 1,
+                    IsHitTestVisible = false,
+                    TransparencyLevelHint = [WindowTransparencyLevel.Transparent],
+                    Background = Brushes.Transparent,
+                    Topmost = true
                 };
-                FakeWindow?.Show();
-            } else FakeWindow.Content = AppFakePanel;
+                FakeWindow.Show();
+                FakeWindow.WindowState = WindowState.Normal;
+                FakeWindow.IsVisible = false;
+                //FakeWindow?.WindowState = WindowState.Minimized;
+            } 
+            FakeWindow.p.Children.Clear();
+            FakeWindow.p.Children.Add(FakeWindow.r);
+            FakeWindow.p.Children.Add(AppFakePanel);
+            //FakeWindow.Content = AppFakePanel;
             Desktop.MainWindow = FakeWindow;
         }
     }
@@ -513,8 +442,10 @@ public partial class App : Application {
     internal static double TipTimer = -1;
     internal static object? TipSource = null;
     private void Tick(object? sender, EventArgs e) {
+       
         var newElapsed = deltaTime?.ElapsedMilliseconds ?? 100;
         var dt = (newElapsed - elapsed) * 0.001f;//MathF.Exp((elapsed - preElapsed) * .01f);
+        FakeWindow?.Tick(dt);
         if (TipTimer > 0)
             if ((TipTimer -= dt) <= 0)
                 if (TipSource != null) {
@@ -680,3 +611,87 @@ public partial class App : Application {
     }
     #endregion
 }
+
+/*Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.1")) {
+    Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.1")) } 
+});
+Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.2")) {
+    Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.2")) } 
+});
+Styles.Add(new Style(x => x.OfType<TextBlock>().Class("shadow.3")) {
+    Setters = { new Setter(Visual.IsVisibleProperty, new DynamicResourceExtension("shadow.3")) }
+});*/
+/*shadowVisible = new Style(x => x.OfType<TextBlockControl>().Class("shadow")) {
+    Setters =
+{
+new Setter(Visual.IsVisibleProperty, true)
+}
+};
+shadowVisibleI = new Style(x => x.OfType<TextBlockInfo>().Class("shadow")) {
+    Setters =
+{
+new Setter(Visual.IsVisibleProperty, true)
+}
+};
+shadowHidden = new Style(x => x.OfType<TextBlockControl>().Class("shadow")) {
+    Setters =
+    {
+new Setter(Visual.IsVisibleProperty, false)
+}
+};
+shadowHiddenI = new Style(x => x.OfType<TextBlockInfo>().Class("shadow")) {
+    Setters =
+    {
+new Setter(Visual.IsVisibleProperty, false)
+}
+};*/
+/*DropShadowEffect[] shadow = [
+    new() { BlurRadius = 1, OffsetX = 1, OffsetY = 1 },
+    new() { BlurRadius = 2, OffsetX = 2, OffsetY = 2 },
+    new() { BlurRadius = 4, OffsetX = 3, OffsetY = 3 }];
+Shadows.Add(new Setter(Visual.EffectProperty, null));
+for (int i = 0; i < 3; ++i) {
+    var si = shadow[i];
+    si.Color = Colors.Black;
+    si.Opacity = 1.0;
+    Shadows.Add(new Setter(Visual.EffectProperty, si));
+}
+Styles.Add(ShadowTexts.Level = new Style(x => x.Is<TextBlock>()) { Setters = {
+    new Setter(TextElement.FontFamilyProperty, new DynamicResourceExtension("ControlFontFamily")),
+    new Setter(TextElement.FontSizeProperty, new DynamicResourceExtension("ControlFontSize"))
+    }});
+Styles.Add(ShadowButtons.Level = new Style(x => x.Is<Button>()) {
+    Setters = { }
+});*/
+
+//ShadowTexts.Level.Add(new Style(x => x.OfType<TextBlock>()) { });
+//ShadowButtons.Level.Add(new Style(x => x.OfType<Button>()) { });
+//for (int i = 0; i < 3; ++i) {
+//    ShadowTexts.Level.Add(new Style(x => x.OfType<TextBlock>()) { Setters = { shadow[i] } });
+//    ShadowButtons.Level.Add(new Style(x => x.OfType<Button>()) { Setters = { shadow[i] } });
+//}
+//var shadowButNo = new Style(x => x.OfType<Button>()) { };
+// TODO figure out how to rotate tooltips and combobox selections corectly:
+// rotates tooltips just like that "PopupRoot" one. at 90 degrees: If taller (more lines) then they get show nearly perfectly, if, long lines, they get cut.
+/*Styles.Add(new Style(x => x.Is<ToolTip>()) {
+    Setters = {
+    new Setter(Visual.ClipToBoundsProperty, false),
+    new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
+    new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
+}
+});*/
+// no effect on tooltips, combobox selectors are still right side up, but instead of opening down from the box, they open upward
+/*Styles.Add(new Style(x => x.Is<Popup>()) {
+    Setters = {
+    new Setter(Visual.ClipToBoundsProperty, false),
+    new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
+    new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
+}
+});*/
+// this would also rotate tooltips (twice if alreadyrotating "ToolTip" style), and it crashes combobo selectors
+/*Styles.Add(new Style(x => x.Is<PopupRoot>()) {
+    Setters = {
+    new Setter(Visual.RenderTransformOriginProperty, new RelativePoint(0.5,0.5,RelativeUnit.Relative)),
+    new Setter(Visual.RenderTransformProperty, new DynamicResourceExtension("RotateTransform"))
+}
+});*/

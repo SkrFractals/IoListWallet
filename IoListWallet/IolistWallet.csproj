@@ -12,9 +12,13 @@
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Images\background.jpg" />
     <None Remove="Locales\en-us.json" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Images\background.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Locales\cs-cz.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

@@ -1,9 +1,9 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using IoListWallet.Content.Abstract;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Books;
-using IoListWallet.Core.Panels;
 using System;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
@@ -32,32 +32,37 @@ internal class AddressContent : IoBookPanel {
     protected override string CustomTitle() 
         => " - " + TryNetwork(MyNetwork)?.AddressBook[MyIndex].Name ?? "";
     private string GetIsValid() {
-        string k = Key[..Key.IndexOf('.')];
+        //string k = Key[..Key.IndexOf('.')];
         var Net = TryNetwork(MyNetwork) ?? throw new(F + "GetIsValid.TryNetwork");
         var thisAddress = Net.AddressBook[MyIndex].Address;
         bool IsValid = Net.IsValidAddress(thisAddress);
         if(IsValid)
             for (int i = Net.AddressBook.Count; 0 <= --i;)
                 if (i != MyIndex && Net.AddressBook[i].Address == thisAddress)
-                    IsValid = false;
-        return (IsValid = Net.AddressBook[MyIndex].IsValid) ? L("Success") + ": " + L("ValidAddress") : L("Error") + ": " + ("InvalidAddress");
+                    IsValid = false; // is a duplicate
+        return (Net.AddressBook[MyIndex].IsValid = IsValid) ? L("Success") + ": " + L("ValidAddress") : L("Error") + ": " + ("InvalidAddress");
     }
     internal override void Refresh(int job) {
         Book.PageNames = [""];
         base.Refresh(job);
     }
     protected override void FillPage(object? sender, IoBook.FillPageEventArgs e) {
+        byte i = 0;
+        string k() => (++i).ToString();
         var s = e.Simulated ? "s." : "";
         var network = TryNetwork(MyNetwork) ?? throw new(F + "FillPage.TryNetwork");
         switch ((BookAddressPage)Book.Swipe.Page.X) {
             case BookAddressPage.Main:
-
+                if (!network.AddressBook.ContainsKey(MyIndex)) {
+                    base.FillPage(sender, e);
+                    return;
+                }
                 // Name
                 void changeName(object? s, EventArgs e) {
-                    var text = ((TextBox?)s)?.Text ?? "New";
-                    if (text == "")
+                    var text = ((TextBox?)s)?.Text ?? "";
+                    /*if (text == "")
                         text = "New";
-                    /*var origText = text;
+                    var origText = text;
                     bool fail = true;
                     ushort count = 0;
                     while (fail) {
@@ -73,26 +78,23 @@ internal class AddressContent : IoBookPanel {
                     SaveNet();
                     RefreshAll(); // only to update matches elsewhere
                 }
-                var changeNameBox = MakeTextBox(s + "changeNameBox", T + "AddressName",
-                    network.AddressBook[MyIndex].Name, "", changeName)
-                    ?? throw new(F + "changeNameBox");
-                changeNameBox.Text.Foreground = AddressBookColors[network.AddressBook[MyIndex].Color];
+                var changeNameBox = MakeTextBox(s + "changeNameBox", this, T + "AddressName",
+                    network.AddressBook[MyIndex].Name, "", changeName);
+                changeNameBox.Text.Foreground = PaletteColors[network.AddressBook[MyIndex].Color];
 
                 // Validator
-                var validNameBlock = MakeTextBlock(s + "validNameBlock", "", GetIsValid())
-                    ?? throw new(F + "validNameBlock");
+                var validNameBlock = MakeTextBlock(s + "validNameBlock", this, "", GetIsValid());
                
                 // Color
                 void selectColor(object? s, EventArgs e) {
                     var c = network.AddressBook[MyIndex].Color = (byte)(((ComboBox?)s)?.SelectedIndex ?? 6);
-                    changeNameBox.Text.Foreground = AddressBookColors[c];
+                    changeNameBox.Text.Foreground = PaletteColors[c];
                     SaveNet();
                     RefreshAll(); // only to update matches elsewhere
                 }
-                var selectColorBox = MakeComboBox(s + "selectColorBox", T + "SelectAddressColor",
-                    Enum.GetValues<AddressBookColor>(), (AddressBookColor)network.AddressBook[MyIndex].Color,
-                    new FuncDataTemplate<AddressBookColor>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectColor)
-                    ?? throw new(F + "selectColorBox");
+                var selectColorBox = MakeComboBox(s + "selectColorBox", this, T + "SelectAddressColor",
+                    Enum.GetValues<ColorPalette>(), (ColorPalette)network.AddressBook[MyIndex].Color,
+                    new FuncDataTemplate<ColorPalette>((mode, _) => new IoTextBlockControl { Text = GetEnumText(mode) }, false), selectColor);
                
                 // Address
                 void changeAddress(object? s, EventArgs e) {
@@ -104,9 +106,8 @@ internal class AddressContent : IoBookPanel {
                         RefreshAll(); // only to update matches elsewhere
                     else RefreshParent();
                 }
-                var changeAddressBox = MakeTextBox(s + "changeAddressBox", T + "CustomAddress",
-                    network.AddressBook[MyIndex].Address, "", changeAddress)
-                    ?? throw new(F + "changeAddressBox");
+                var changeAddressBox = MakeTextBox(s + "changeAddressBox", this, T + "CustomAddress",
+                    network.AddressBook[MyIndex].Address, "", changeAddress);
                 
                 // Deposit Rules
                 void selectDeposit(object? s, EventArgs e) {
@@ -114,18 +115,16 @@ internal class AddressContent : IoBookPanel {
                     RefreshParent();
                     SaveNet();
                 }
-                var selectDepositBox = MakeComboBox(s + "selectDepositBox", T + "RuleDeposit",
+                var selectDepositBox = MakeComboBox(s + "selectDepositBox", this, T + "RuleDeposit",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleDeposit,
-                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectDeposit)
-                    ?? throw new(F + "selectDepositBox");
+                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlockControl { Text = GetEnumText(mode) }, false), selectDeposit);
                 void valueDeposit(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxDepositValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
                     RefreshParent();
                     SaveNet();
                 }
-                var valueDepositBox = MakeTextBox(s + "valueDepositBox", T + "RuleDepositValue",
-                    network.AddressBook[MyIndex].MaxDepositValue.ToString(), "Maximum", valueDeposit)
-                    ?? throw new(F + "valueDepositBox");
+                var valueDepositBox = MakeTextBox(s + "valueDepositBox", this, T + "RuleDepositValue",
+                    network.AddressBook[MyIndex].MaxDepositValue.ToString(), "Maximum", valueDeposit);
                 
                 // Withdraw Rules
                 void selectWithdraw(object? s, EventArgs e) {
@@ -133,18 +132,16 @@ internal class AddressContent : IoBookPanel {
                     RefreshParent();
                     SaveNet();
                 }
-                var selectWithdrawBox = MakeComboBox(s + "selectWithdrawBox", T + "RuleWithdraw",
+                var selectWithdrawBox = MakeComboBox(s + "selectWithdrawBox", this, T + "RuleWithdraw",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleWithdraw,
-                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlock { Text = GetEnumText(mode) }, false), selectWithdraw)
-                    ?? throw new(F + "selectWithdrawBox");
+                    new FuncDataTemplate<AddressBookRule>((mode, _) => new IoTextBlockControl { Text = GetEnumText(mode) }, false), selectWithdraw);
                 void valueWithdraw(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxWithdrawValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
                     RefreshParent();
                     SaveNet();
                 }
-                var valueWithdrawBox = MakeTextBox(s + "valueWithdrawBox", T + "RuleWithdrawValue",
-                    network.AddressBook[MyIndex].MaxWithdrawValue.ToString(), "Maximum", valueWithdraw)
-                    ?? throw new(F + "valueWithdrawBox");
+                var valueWithdrawBox = MakeTextBox(s + "valueWithdrawBox", this, T + "RuleWithdrawValue",
+                    network.AddressBook[MyIndex].MaxWithdrawValue.ToString(), "Maximum", valueWithdraw);
                
                 // Remove Address
                 void clickRemoveAddress(object? s, EventArgs e) {
@@ -154,17 +151,16 @@ internal class AddressContent : IoBookPanel {
                     Delete(); // totally delete this panel instead of just closing.
                     RefreshAll(); // only to update matches elsewhere
                 }
-                var removeAddressButton = MakeButton(s + "removeAddressButton", T + "RemoveAddress", "Remove",
-                        clickRemoveAddress, false, FontWeight.Bold, L("AreYouSure"))
-                    ?? throw new(F + "removeAddressButton");
+                var removeAddressButton = MakeButton(s + "removeAddressButton", this, T + "RemoveAddress", "Remove",
+                    clickRemoveAddress, false, FontWeight.Bold, L("AreYouSure"));
                 
-                Book.MakeRow(e, "0", "RemoveAddress", [(removeAddressButton.Button, 1)]);
-                Book.MakeRow(e, "1", "AddressName", [(changeNameBox.Border, 1)]);
-                Book.MakeRow(e, "2", "", [(validNameBlock.View, 1)]);
-                Book.MakeRow(e, "3", "SelectAddressColor", [(selectColorBox.View, 1)]);
-                Book.MakeRow(e, "4", "CustomAddress", [(changeAddressBox.Border, 1)]);
-                Book.MakeRow(e, "5", "RuleDeposit", [(selectDepositBox.View, 1), (valueDepositBox.Border, 3)]);
-                Book.MakeRow(e, "6", "RuleWithdraw", [(selectWithdrawBox.View, 1), (valueWithdrawBox.Border, 3)]);
+                Book.MakeRow(e, k(), "RemoveAddress", [(removeAddressButton.Button, 1)]);
+                Book.MakeRow(e, k(), "AddressName", [(changeNameBox.Border, 1)]);
+                Book.MakeRow(e, k(), "", [(validNameBlock.View, 1)]);
+                Book.MakeRow(e, k(), "SelectAddressColor", [(selectColorBox.View, 1)]);
+                Book.MakeRow(e, k(), "CustomAddress", [(changeAddressBox.Border, 1)]);
+                Book.MakeRow(e, k(), "RuleDeposit", [(selectDepositBox.View, 1), (valueDepositBox.Border, 3)]);
+                Book.MakeRow(e, k(), "RuleWithdraw", [(selectWithdrawBox.View, 1), (valueWithdrawBox.Border, 3)]);
 
                 break;
         }

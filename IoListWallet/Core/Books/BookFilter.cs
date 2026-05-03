@@ -3,7 +3,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Media;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Panels;
 using IoListWallet.Core.Static;
 using System;
 using System.Collections.Generic;
@@ -19,7 +18,7 @@ internal class BookFilter : IoBook {
 
     internal IoListBase MyList;
     internal byte MaxSearch = 64;
-    internal BookFilter(IoListBase myList) {
+    internal BookFilter(IoPanel owner, IoListBase myList) : base(owner) {
         MyList = myList;
         PageNames = GetMaxSearch() > 1 ? ["Sort", "Search", "AddSearch"] : ["Sort"];
         FillPage += OnFillPage;
@@ -31,7 +30,7 @@ internal class BookFilter : IoBook {
    
     internal IoFilter? Filters;
     internal string ResultsText = "";
-    internal (IoTextBlock Text, Viewbox View)? Results;
+    internal WTextBlock? Results;
     internal event EventHandler<EventArgs>? OnUpdate;
 
     //private static = new((index, _) => new IoToggleButton(new IoTextBlock { Text = ETypes.TryGetValue(fe.EnumType, out var type) ? GetEnumText((Enum)Enum.ToObject(type, index)) : "" }), false);
@@ -93,8 +92,7 @@ internal class BookFilter : IoBook {
         if ((Page > 0 && Page <= Filters.Size) || onlyone) {
 
             // Remove Search Button:
-            var removeSearch = MakeButton(s + "removeSearch." + PageS, "T_RemoveSearch", L("Remove"), DeleteSearch, false, FontWeight.Bold, L("AreYouSure"))
-                ?? throw new(F + "RemoveSearch");
+            var removeSearch = MakeButton(s + "removeSearch." + PageS, Owner, "T_RemoveSearch", L("Remove"), DeleteSearch, false, FontWeight.Bold, L("AreYouSure"));
             //removeSearch.Button.IsEnabled = Filters.Size > 1;
             if (Filters.Size > 1 || (e.Simulated && MaxSearch > 1))
                 MakeRow(e, "_RemoveSearch", "RemoveSearch", [(removeSearch.Button, 1)]);
@@ -110,12 +108,11 @@ internal class BookFilter : IoBook {
                     SetBit(ref d, (ulong)((((IoToggleButton?)s)?.IsChecked ?? false) ? 0 : 1), S);
                     filter.Disabled = d;
                     if (dButtons.TryGetValue("enable." + PageS + "." + name, out var b) && b != null)
-                        b.Value.Text.Text = Dis(TakeBit(filter.Disabled) > 0);
+                        b.Text.Text = Dis(TakeBit(filter.Disabled) > 0);
                     OnUpdate?.Invoke(this, new EventArgs());
                 }
                 var disabledF = TakeBit(filter.Disabled) > 0;
-                var EnableF = MakeButton(s + "enable." + PageS + "." + name, "T_Enable", Dis(disabledF), enablePressed, !disabledF, FontWeight.Normal, "")
-                    ?? throw new(F + "Disabled " + name);
+                var EnableF = MakeButton(s + "enable." + PageS + "." + name, Owner, "T_Enable", Dis(disabledF), enablePressed, !disabledF, FontWeight.Normal, "");
 
                 if (filter is FilterText ft) {
 
@@ -126,8 +123,7 @@ internal class BookFilter : IoBook {
                     }
                     void update(object? s, EventArgs _)
                         => UpdateText((IoTextBox?)s, filter, set);
-                    var regexp = MakeTextBox(s + "regexp." + PageS + "." + name, "T_Regexp", ft.Regexp[S], "Regexp", update, update)
-                        ?? throw new(F + "Regexp " + name);
+                    var regexp = MakeTextBox(s + "regexp." + PageS + "." + name, Owner, "T_Regexp", ft.Regexp[S], "Regexp", update, update);
                     MakeRow(e, name, name, [(EnableF.Button, 1), (regexp.Border, 2)]);
 
                 } else if (filter is FilterNumber fn) {
@@ -145,13 +141,10 @@ internal class BookFilter : IoBook {
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMin);
                     void updateMax(object? s, EventArgs _)
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMax);
-                    var Min = MakeNumeric(s + "min." + PageS + "." + name, "T_FilterMinValue", fn.Range[S].Min, fn.MinMin, fn.MaxMin, 1, 10, "Min", "", "", updateMin)
-                        ?? throw new(F + "Number.Min " + name);
-                    var Max = MakeNumeric(s + "max." + PageS + "." + name, "T_FilterMaxValue", fn.Range[S].Max, fn.MinMax, fn.MaxMax, 1, 10, "Max", "", "", updateMax)
-                        ?? throw new(F + "Number.Max " + name);
-                    var (_, DashV) = MakeTextBlock(s + "dash." + PageS + "." + name, "", " - ")
-                        ?? throw new(F + "Number.Dash " + name);
-                    MakeRow(e, name, name, [(EnableF.Button, 4), (Min, 4), (DashV, 1), (Max, 4)]);
+                    var Min = MakeNumeric(s + "min." + PageS + "." + name, Owner, "T_FilterMinValue", fn.Range[S].Min, fn.LowerMin, fn.LowerMax, 1, 10, "Min", "", "", updateMin);
+                    var Max = MakeNumeric(s + "max." + PageS + "." + name, Owner, "T_FilterMaxValue", fn.Range[S].Max, fn.UpperMin, fn.UpperMax, 1, 10, "Max", "", "", updateMax);
+                    var Dash = MakeTextBlock(s + "dash." + PageS + "." + name, Owner, "", " - ");
+                    MakeRow(e, name, name, [(EnableF.Button, 4), (Min, 4), (Dash.View, 1), (Max, 4)]);
 
                 } else if (filter is FilterEnum fe && ETypes.TryGetValue(fe.EnumType, out var isEnumType) && isEnumType is Type enumType) {
 
@@ -176,9 +169,8 @@ internal class BookFilter : IoBook {
                         if (dCombos.TryGetValue(key, out var d) && d?.Combo is ComboBox c) //if(b.FindAncestorOfType<IoComboBox>() is IoComboBox c)
                             c.IsDropDownOpen ^= true; // clicked the null button: toggle the dropdown
                     }
-                    var toggleEnum = MakeBitmaskBox(key, "T_" + key, ToMatch, 
-                        new FuncDataTemplate<byte?>((bit, _) => GetBitmaskButtons(key, bit, fe.Match[S], enumType, onToggleEnum)))
-                        ?? throw new(F + key);
+                    var toggleEnum = MakeBitmaskBox(key, Owner, "T_" + key, ToMatch,
+                        new FuncDataTemplate<byte?>((bit, _) => GetBitmaskButtons(Owner, key, bit, fe.Match[S], enumType, onToggleEnum)));
                     MakeRow(e, name, name, [(EnableF.Button, 1), (toggleEnum.View, 2)]);
 
                 } else if (filter is FilterDate fd) {
@@ -196,13 +188,10 @@ internal class BookFilter : IoBook {
                         => UpdateDate((IoDatePicker?)s, filter, setMin);
                     void updateMax(object? s, DatePickerSelectedValueChangedEventArgs _)
                         => UpdateDate((IoDatePicker?)s, filter, setMax);
-                    var (_, MinV) = MakeDatePick(s + "min." + PageS + "." + name, "T_FilterMinDate", fd.Range[S].Min, updateMin)
-                        ?? throw new(F + "Date.Min " + name);
-                    var (_, MaxV) = MakeDatePick(s + "max." + PageS + "." + name, "T_FilterMaxDate", fd.Range[S].Max, updateMax)
-                        ?? throw new(F + "Date.Max " + name);
-                    var (_, dashV) = MakeTextBlock(s + "dash." + PageS + "." + name, "", " - ")
-                        ?? throw new(F + "Date.Dash " + name);
-                    MakeRow(e, name, name, [(EnableF.Button, 3), (MinV, 2), (dashV, 1), (MaxV, 2)]);
+                    var min = MakeDatePick(s + "min." + PageS + "." + name, Owner, "T_FilterMinDate", fd.Range[S].Min, updateMin);
+                    var max = MakeDatePick(s + "max." + PageS + "." + name, Owner, "T_FilterMaxDate", fd.Range[S].Max, updateMax);
+                    var dash = MakeTextBlock(s + "dash." + PageS + "." + name, Owner, "", " - ");
+                    MakeRow(e, name, name, [(EnableF.Button, 3), (min.View, 2), (dash.View, 1), (max.View, 2)]);
 
                 } else if (filter is FilterToken fa) {
                    
@@ -219,7 +208,7 @@ internal class BookFilter : IoBook {
                         SetBit(ref d, (ulong)((((IoCheckBox?)s)?.IsChecked ?? false) ? 0 : 1), S);
                         fa.DisabledValues = d;
                         if (dButtons.TryGetValue("d." + PageS + "." + name, out var b) && b != null)
-                            b.Value.Text.Text = Dis(TakeBit(fa.DisabledValues) > 0);
+                            b.Text.Text = Dis(TakeBit(fa.DisabledValues) > 0);
                         OnUpdate?.Invoke(this, new EventArgs());
                         IoPanel.Dirty();
                     }
@@ -235,16 +224,12 @@ internal class BookFilter : IoBook {
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMin, fa.DisabledValues);
                     void updateMax(object? s, EventArgs _)
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMax, fa.DisabledValues);
-                    var Regexp = MakeTextBox(s + "regexpt." + PageS + "." + name, "T_FilterTicker", fa.Cond[S].Ticker, "Regexp", update)
-                        ?? throw new(F + "Token.Regexp " + name);
+                    var Regexp = MakeTextBox(s + "regexpt." + PageS + "." + name, Owner, "T_FilterTicker", fa.Cond[S].Ticker, "Regexp", update);
                     var disabledT = TakeBit(fa.DisabledValues) > 0;
-                    var EnableT = MakeButton(s + "d." + PageS + "." + name, "T_FilterTokenValue", Dis(disabledT), setd, !disabledT, FontWeight.Normal, "")
-                        ?? throw new(F + "Token.EnableValue" + name);
-                    var Min = MakeNumeric(s + "mint." + PageS + "." + name, "T_FilterMinTokens", fa.Cond[S].Min, fa.MinMin, fa.MaxMin, 1, 10, "Min", "", "", updateMin)
-                       ?? throw new(F + "Number.Mint " + name);
-                    var Max = MakeNumeric(s + "maxt." + PageS + "." + name, "T_FilterMaxTokens", fa.Cond[S].Max, fa.MinMax, fa.MaxMax, 1, 10, "Max", "", "", updateMax)
-                        ?? throw new(F + "Number.Maxt " + name);
-                    var Dash = MakeTextBlock(s + "dash." + PageS + "." + name, "", " - ") ?? throw new(F + "Token.Dash" + name);
+                    var EnableT = MakeButton(s + "d." + PageS + "." + name, Owner, "T_FilterTokenValue", Dis(disabledT), setd, !disabledT, FontWeight.Normal, "");
+                    var Min = MakeNumeric(s + "mint." + PageS + "." + name, Owner, "T_FilterMinTokens", fa.Cond[S].Min, fa.MinMin, fa.MaxMin, 1, 10, "Min", "", "", updateMin);
+                    var Max = MakeNumeric(s + "maxt." + PageS + "." + name, Owner, "T_FilterMaxTokens", fa.Cond[S].Max, fa.MinMax, fa.MaxMax, 1, 10, "Max", "", "", updateMax);
+                    var Dash = MakeTextBlock(s + "dash." + PageS + "." + name, Owner, "", " - ");
                     MakeRow(e, name, name, [(EnableF.Button, 4), (Regexp.Border, 4), (EnableT.Button, 1), (Min, 4), (Dash.View, 1), (Max, 4)]);
                 }
                 SortIndices.Add(Index++);
@@ -257,7 +242,7 @@ internal class BookFilter : IoBook {
             void setInc(object? s, EventArgs e) {
                 Filters?.Increasing = ((IoToggleButton?)s)?.IsChecked ?? false;
                 if (dButtons.TryGetValue("inc1check", out var b) && b != null)
-                    b.Value.Text.Text = Inc(Filters?.Increasing ?? true);
+                    b.Text.Text = Inc(Filters?.Increasing ?? true);
                 //incLabel.Text.Text = (Filters.Increasing = ((IoToggleButton?)s)?.IsChecked ?? false) ? L("Increasing") : L("Decreasing");
                 OnUpdate?.Invoke(this, new EventArgs());
             }
@@ -268,10 +253,9 @@ internal class BookFilter : IoBook {
                     OnUpdate?.Invoke(this, new EventArgs());
                 }
             }
-            var inc1 = MakeButton(s + "inc1check", "T_Increasing1", Inc(Filters.Increasing), setInc, Filters.Increasing, FontWeight.Normal, "") ?? throw new(F + "inc");
-            var sort1 = MakeComboBox(s + "sort1", "T_Sort1", SortIndices, Filters.SortIndex,
-                new FuncDataTemplate<ushort>((mode, _) => new IoTextBlock { Text = Filters.Filters[mode].Name }, false), setSort1)
-                ?? throw new(F + "sort1");
+            var inc1 = MakeButton(s + "inc1check", Owner, "T_Increasing1", Inc(Filters.Increasing), setInc, Filters.Increasing, FontWeight.Normal, "");
+            var sort1 = MakeComboBox(s + "sort1", Owner, "T_Sort1", SortIndices, Filters.SortIndex,
+                new FuncDataTemplate<ushort>((mode, _) => new IoTextBlockControl { Text = Filters.Filters[mode].Name }, false), setSort1);
             MakeRow(e, "_Sort", SortIndices.Count > 1 ? "FirstSort" : "Sort", [(inc1.Button, 1), (sort1.View, 3)]);
 
             // Sort2: Only allow secdondary sort, if there are actaully more than one ways to sort, otherwise it's meaningless
@@ -279,7 +263,7 @@ internal class BookFilter : IoBook {
                 void setInc2(object? s, EventArgs e) {
                     Filters?.Increasing2 = ((IoToggleButton?)s)?.IsChecked ?? false;
                     if (dButtons.TryGetValue("inc2check", out var b) && b != null)
-                        b.Value.Text.Text = Inc(Filters?.Increasing ?? true);
+                        b.Text.Text = Inc(Filters?.Increasing ?? true);
                     //incLabel2.Text.Text = (Filters.Increasing2 = ((IoToggleButton?)s)?.IsChecked ?? false) ? L("Increasing") : L("Decreasing");
                     OnUpdate?.Invoke(this, new EventArgs());
                 }
@@ -290,10 +274,9 @@ internal class BookFilter : IoBook {
                         OnUpdate?.Invoke(this, new EventArgs());
                     }
                 }
-                var inc2 = MakeButton(s + "inc2check", "T_Increasing2", Inc(Filters.Increasing2), setInc2, Filters.Increasing2, FontWeight.Normal, "") ?? throw new(F + "inc");
-                var sort2 = MakeComboBox(s + "sort2", "T_Sort2", SortIndices, Filters.SortIndex2,
-                    new FuncDataTemplate<ushort>((mode, _) => new IoTextBlock { Text = Filters.Filters[mode].Name }, false), setSort2)
-                    ?? throw new(F + "sort2");
+                var inc2 = MakeButton(s + "inc2check", Owner, "T_Increasing2", Inc(Filters.Increasing2), setInc2, Filters.Increasing2, FontWeight.Normal, "");
+                var sort2 = MakeComboBox(s + "sort2", Owner, "T_Sort2", SortIndices, Filters.SortIndex2,
+                    new FuncDataTemplate<ushort>((mode, _) => new IoTextBlockControl { Text = Filters.Filters[mode].Name }, false), setSort2);
                 MakeRow(e, "_Sort2", "SecondSort", [(inc2.Button, 1), (sort2.View, 3)]);
             }
 
@@ -302,13 +285,12 @@ internal class BookFilter : IoBook {
                 Filters?.PageSize = (uint?)((IoNumericLeftRight?)s)?.Value ?? 10;
                 OnUpdate?.Invoke(this, new EventArgs());
             }
-            var pageSize = MakeNumeric(s + "pageSize", "T_PageLength", Filters?.PageSize ?? 10, 1, 100, 1, 1, "PageSize", "", "", changePageSize)
-                ?? throw new(F + "pageSize");
+            var pageSize = MakeNumeric(s + "pageSize", Owner, "T_PageLength", Filters?.PageSize ?? 10, 1, 100, 1, 1, "PageSize", "", "", changePageSize);
             MakeRow(e, "_PageSize", "PageSize", [(pageSize, 1)]);
 
         }
-        Results = MakeTextBlock(s + "results." + PageS, "T_Results", ResultsText) ?? throw new(F + "Results");
-        MakeRow(e, "_Results", "Results", [(Results.Value.View, 1)]);
+        Results = MakeTextBlock(s + "results." + PageS, Owner, "T_Results", ResultsText);
+        MakeRow(e, "_Results", "Results", [(Results.View, 1)]);
     }
     private ushort GetMaxSearch() => Math.Min(MaxSearch, (GetProfile?.MaxSearchTabs ?? DPro.MaxSearchTabs));
     internal void Restore(IoFilter? newFilters) {

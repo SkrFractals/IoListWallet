@@ -7,6 +7,7 @@ internal abstract class NetworkBitcoin : IoNetwork {
         AddressTypes = [typeof(Address_BitcoinLegacy), typeof(Address_BitcoinSegwit), typeof(Address_BitcoinTaproot)];
         Blockchain = "Bitcoin";
         Ticker = "BTC";
+        Units = [new(8, "BTC"), new(5, "BTC"), new(2, "μBTC"), new(0, "sat"), new(11, "kBTC")];
     }
     internal override string GetNetwork() => (MyNetwork as NBitcoin.Network)?.Name ?? "";
     internal override bool IsValidAddress(string address) {

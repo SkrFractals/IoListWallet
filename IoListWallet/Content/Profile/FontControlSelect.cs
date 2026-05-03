@@ -1,4 +1,5 @@
 ﻿using Avalonia.Media;
+using IoListWallet.Content.Abstract;
 using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.IoPanels.Profile;

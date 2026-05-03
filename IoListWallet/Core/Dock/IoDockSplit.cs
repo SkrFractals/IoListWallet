@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using IoListWallet.Core.Panels;
 using IoListWallet.Core.Static;
 using System;
 using static IoListWallet.Core.Static.AppSave;

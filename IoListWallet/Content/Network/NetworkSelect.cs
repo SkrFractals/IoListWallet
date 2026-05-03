@@ -1,6 +1,7 @@
-﻿using IoListWallet.Core;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core;
+using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Panels;
 using IoListWallet.IoPanels.Main;
 using System;
 using System.Threading;
@@ -9,6 +10,7 @@ using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.IoPanels.Network;
 internal class NetworkSelect : IoListPanel {
+    private const string F = "Failed IoListPanel.";
     private bool initNetwork = true;
     public NetworkSelect() : base() {
         MakeList<Type>(new IoFilter() {
@@ -17,8 +19,8 @@ internal class NetworkSelect : IoListPanel {
                 new FilterText() { Name = "Network" } // Network 
                 // TODO add filters: Staking, Smart...
             ], SortIndex = 0, SortIndex2 = 1, Increasing = true, Increasing2 = true
-        }, [("T_AddNetwork", L("AddNetwork"))], // Toolbar: 0 = Add Network
-        2, // Columns: 0 = Select Network, 1 = Edit Network
+        }, new Gen_Buttons(2), // Columns: 0 = Select Network, 1 = Edit Network
+        [("T_AddNetwork", L("AddNetwork"))], // Toolbar: 0 = Add Network
         -1, 0, null, null, IsSelected);
     }
     internal override string TrueParentType => MakeK(typeof(MainMenu), "");
@@ -33,10 +35,10 @@ internal class NetworkSelect : IoListPanel {
     internal override void RefreshData(int job, CancellationToken? token) {
         MyList[0].RefreshTemplate(
             GetNetworks?.Keys,
-            (o) => [ // Columns:
+            (o) => new Gen_Buttons.GenData([ // Columns:
                 "T_SelectNetwork", IsNetwork((Type?)o, out var n) && n != null ? L(n.Blockchain) + " - " + L(n.GetNetwork()) : "", // Select Network
                 "T_EditNetwork", L("EditNetwork") // Edit Network
-            ], 
+            ]), 
             (o) => IsNetwork((Type?)o, out var n) && n != null ? [ // Search Data:
                 L(n.Blockchain), // Blockchain
                 L(n.GetNetwork()) // Network
@@ -51,25 +53,20 @@ internal class NetworkSelect : IoListPanel {
         LoadNetwork((Type?)o);
         RefreshPanel(this, 1 << MyList[fromList].MyIndex, initNetwork = true);
     }
-    protected override void OnClickButton(object? sender, ClickButtonEventArgs e) { 
+    protected override void OnClickRow(object? sender, IoListBase.ClickRowEventArgs e) { 
         switch (e.Index) {
             case 0: // Select Network
-                base.OnClickButton(sender, e);
+                base.OnClickRow(sender, e);
                 break;
             case 1: // Edit Network
-                var b = e.ClickedButton 
-                    ?? throw new("Failed ListNetworkSelect.OnClickButton");
-                var netId = (Type?)b.Button.Tag
-                    ?? throw new("EditNetwork.Button.Tag is not a proper IoNetwork!");
-                var n = TryNetwork(netId) 
-                    ?? throw new("EditNetwork.Button.Tag is not a proper IoNetwork!");
-                
-                var editPanel = OpenRefreshPanel(this, typeof(NetworkContent), netId.Name/*n.Blockchain + " - " + n.GetNetwork()*/) as NetworkContent 
-                    ?? throw new("Failed ListNetworkSelect.editPanel");
+                var b = e.ClickedRow as WToggleButton ?? throw new(F + "OnClickButton");
+                var netId = (Type?)b.Button.Tag ?? throw new(F + "Button.Tag");
+                var n = TryNetwork(netId)  ?? throw new(F + "TryNetwork");
+                OpenRefreshPanel(this, typeof(NetworkContent), netId.Name);
                 break;
         }
     }
-    protected override void OnClickTool(object? sender, ClickToolEventArgs e) {
+    protected override void OnClickTool(object? sender, IoListBase.ClickToolEventArgs e) {
         switch (e.Index) {
             case 0: // Add Network
                 OpenRefreshPanel(this, typeof(NetworkAdd));

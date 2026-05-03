@@ -20,6 +20,8 @@ internal class IoBook : IoUserControl {
 
     internal event EventHandler<FillPageEventArgs>? FillPage;
 
+    internal IoPanel Owner;
+
     internal string[] PageNames = [""];
     internal IoSwipe Swipe;
     internal Size MaxSize;
@@ -34,9 +36,10 @@ internal class IoBook : IoUserControl {
     private Grid? prevG, nowG;
 
     private const string F = "Failed IoBook.";
-    internal IoBook() : base() {
+    internal IoBook(IoPanel owner) : base() {
+        Owner = owner;
         transformToolbar = new TranslateTransform(0, 0);
-        Content = main = MakeGrid("") ?? throw new(F + "new.main");
+        Content = main = MakeGrid("");
         Swipe = new(true, true) {
             TransformBounds = (0, -1, 1, 2),
             ClipToBounds = false
@@ -56,7 +59,7 @@ internal class IoBook : IoUserControl {
                     SwipeAway(e.ToPage); 
                 else TabClick(
                 dSButtons.TryGetValue("pageButton." + e.ToPage.X.ToString(), out var b) && b != null
-                    ? b.Value.Button : null,
+                    ? b.Button : null,
                 new EventArgs());
                     });
     }
@@ -112,8 +115,7 @@ internal class IoBook : IoUserControl {
         for (var i = 0; i < PageNames.Length; ++i) {
             //Swipe.Page = (i, 0);
             var k = "s.page." + i.ToString();
-            var n = MakeGrid(k)
-                ?? throw new(F + k);
+            var n = MakeGrid(k);
             n.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Auto)));
             n.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(3, GridUnitType.Star)));
             row = 0;
@@ -132,7 +134,7 @@ internal class IoBook : IoUserControl {
 
     internal void Refresh() {
         // Content Grid:
-        main = MakeGrid("") ?? throw new(F + "Refresh.main");
+        main = MakeGrid("");
         main.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
         // make toolbar:
@@ -147,8 +149,7 @@ internal class IoBook : IoUserControl {
             ? GetPage(Swipe.PrevPage.X) : null;
         
         // Make Page Grid:
-        nowG = Swipe.Page.X >= 0 && Swipe.Page.Y == 0 ? ( MakeGrid("page." + Swipe.Page.X.ToString()) 
-            ?? throw new(F + "page " + Swipe.Page.X.ToString())) : null;
+        nowG = Swipe.Page.X >= 0 && Swipe.Page.Y == 0 ? ( MakeGrid("page." + Swipe.Page.X.ToString())) : null;
 
         main.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         if (nowG != null) {
@@ -175,7 +176,9 @@ internal class IoBook : IoUserControl {
     /// <param name="labelTextLocaleText">text on the left, localized, and with ": " attached, empty string will merge the columns for the main content</param>
     /// <param name="controls">top layers of controls to attach, with size weights</param>
     /// <param name="labelBrush">Color of he label text</param>
-    internal void MakeRow(FillPageEventArgs e, string entryKey, string labelTextLocaleText, (Control Control, double Size)[] controls, IImmutableSolidColorBrush? labelBrush = null) {
+    internal void MakeRow(FillPageEventArgs e, string entryKey, string labelTextLocaleText, (Control Control, double Size)[] controls, IImmutableSolidColorBrush? labelBrush = null, bool show = true) {
+        if (!show)
+            return;
         // entryKey must be unique and must have a format: s + "string";
         var s = e.Simulated ? "s." : "";
         if (!dGrids.TryGetValue(s + "page." + e.Page.X.ToString(), out var g) || g == null)
@@ -185,19 +188,19 @@ internal class IoBook : IoUserControl {
         bool isLabel = labelTextLocaleText != "" && labelTextLocaleText[0] != '-';
 
         if (isLabel) {
-            var (Text, View) = MakeTextBlock(s + "label." + e.Page.X.ToString() + "." + entryKey, "", L(labelTextLocaleText) + ": ")
-                ?? throw new(F + "MakeRow.label " + entryKey);
-            Text.Foreground = labelBrush ?? Brushes.White;
-            Grid.SetRow(View, row);
-            Grid.SetColumn(View, 0);
-            AddChild(g, View);
+            var Text = MakeTextBlock(s + "label." + e.Page.X.ToString() + "." + entryKey, Owner, "", L(labelTextLocaleText) + ": ");
+            Text.Text.Foreground = labelBrush ?? Brushes.White;
+            Text.Text.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+            Text.Text.TextAlignment = TextAlignment.Left;
+            Grid.SetRow(Text.View, row);
+            Grid.SetColumn(Text.View, 0);
+            AddChild(g, Text.View);
         }
-
         // Grid2
-        var gRow = MakeGrid(s + "row." + e.Page.X.ToString() + "." + entryKey) 
-            ?? throw new(F + "MakeRow.gRow");
+        var gRow = MakeGrid(s + "row." + e.Page.X.ToString() + "." + entryKey);
         gRow.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         int collumn = 0;
+        //gRow.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
         foreach (var control in controls) {
             gRow.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(control.Size, GridUnitType.Star)));
             Grid.SetColumn(control.Control, collumn++);
@@ -223,17 +226,15 @@ internal class IoBook : IoUserControl {
     protected virtual void RefreshToolbar(bool real = true) {
         if (PageNames.Length <= 1 || main == null)
             return;
-        MainPageSelect = MakeToolbar("MainPageSelect") 
-            ?? throw new(F + "mainPageSelect");
+        MainPageSelect = MakeToolbar("MainPageSelect");
         //MainPageSelect.ClipToBounds = false;
         for (int i = 0; i < PageNames.Length; ++i) {
             var p = PageNames[i];
             var selected = Swipe.Page.X == i;
             void clickedTab(object? s, EventArgs e)
                 => TabClick(s, new EventArgs() { });
-            var pageButton = MakeSmallButton("pageButton." + i.ToString(), "T_SettingsAppTab." + p, L(p),
-                clickedTab, selected, selected ? FontWeight.Bold : FontWeight.Normal, null, i)
-                ?? throw new(F + "mainPageSelect.Button");
+            var pageButton = MakeSmallButton("pageButton." + i.ToString(), this, "T_SettingsAppTab." + p, L(p),
+                clickedTab, selected, selected ? FontWeight.Bold : FontWeight.Normal, null, i);
             AddChild(MainPageSelect, pageButton.Button);
         }
         if(real)
@@ -258,7 +259,7 @@ internal class IoBook : IoUserControl {
     internal Grid? GetPage(int Page)
         => Page >= 0 ? ((dGrids.TryGetValue("page." + Page.ToString(), out var p) ? p : null)
             ?? throw new(F + "GetPage " + Page.ToString())) : null;
-    internal (IoTextBlock Text, IoToggleButton Button)? GetPageButton(int Page)
+    internal WSToggleButton? GetPageButton(int Page)
       => Page >= 0 ? ((dSButtons.TryGetValue("pageButton." + Page.ToString(), out var p) ? p : null)
           ?? throw new(F + "GetPageButton " + Page.ToString())) : null;
 }

@@ -1,11 +1,9 @@
-﻿using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using IoListWallet.Core.Books;
 using System;
 using static IoListWallet.Core.Static.AppSave;
 using static IoListWallet.Core.Static.ConstructionHelpers;
 using static IoListWallet.Core.IoSwipe;
-using IoListWallet.Core.Static;
 
 namespace IoListWallet.Core;
 
@@ -27,9 +25,9 @@ internal class IoPopup : IoUserControl {
         Popup = popup;
         ClipToBounds = false;
         Popup.Swipe.OnUpdateTransform += UpdateTransform;
-        Main = MakeGrid("Main") ?? throw new("Failed IoListPanel.Main");
-        GridPopup = MakeGrid("GridPopup") ?? throw new("Failed IoListPanel.GridPopup");
-        GridCore = MakeGrid("GridList") ?? throw new("Failed IoListPanel.GridList");
+        Main = MakeGrid("Main");
+        GridPopup = MakeGrid("GridPopup");
+        GridCore = MakeGrid("GridList");
         A = new GridLength(0, GridUnitType.Star);
         B = new GridLength(1, GridUnitType.Star);
         H = new GridLength(.5, GridUnitType.Star);

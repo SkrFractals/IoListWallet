@@ -1,7 +1,4 @@
-﻿using Avalonia.Controls;
-using IoListWallet.Core.Basic;
-using IoListWallet.Core.Panels;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,15 +7,7 @@ using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Core.Lists;
 
-internal class ClickToolEventArgs {
-    internal int FromList;
-    internal int Index;
-}
-internal class ClickButtonEventArgs {
-    internal int FromList;
-    internal (IoTextBlock Text, Viewbox View, IoToggleButton Button)? ClickedButton;
-    internal int Index;
-}
+
 // This is a core parent of SearchList elements, it querries and contructs a list representation of various elements
 // It splits the list into pages that you can browse with numberics at the bottom, or swiping up/down.
 // It has semi-automatic Search tab, that you can open within, which lets you double sort the elements, or filter any parts with complex conditions
@@ -76,16 +65,16 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
         var filter = MyFilter.Filters;
 
         // Call helpers:
-        string[] GetTexts(object? key)
-            => (ItemTemplate == null ? [key?.ToString() ?? ""] : ItemTemplate(key)) ?? [""];
+        IoGen.Data? GetData(object? key)
+            => (ItemTemplate != null ? ItemTemplate(key) : null) ?? null;
         // only the bucketintro sort required a more complex add
-        Action<ushort, (object Key, IComparable Compare2, IComparable Compare, GroupBorder? Group, byte Selected, string[] Texts)> insert
+        Action<ushort, (object Key, IComparable Compare2, IComparable Compare, GroupBorder? Group, byte State, IoGen.Data? Data)> insert
             = profile.SortAlgo == SortAlgo.P_BucketIntro ? bucket.InsertThreaded : bucket.InsertThreadedSimple;
 
         if (filter?.Filters != null) {
-            void PerformFilter(ushort taskIndex, object key, string[] texts, bool skip) {
+            void PerformFilter(ushort taskIndex, object key, IoGen.Data? genData, bool skip) {
                 int i;
-                if ((FilterCommandTemplate == null ? texts : FilterCommandTemplate(key)) is not string[] data
+                if ((FilterCommandTemplate == null ? [] : FilterCommandTemplate(key)) is not string[] data
                     || (i = data.Length) <= 0
                     || i != filter.Filters.Count
                 ) return; // There must be filter data each filter
@@ -107,7 +96,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                 }
                 // If it passed the filter conditions, add it to the SourceList
                 if (isMatch > 0)
-                    insert(taskIndex, (key, SortValue.Compare, SortValue2, SortValue.Group, (byte)(skip ? 2 : Selected != null && Selected(key)/*key.Equals(Selected)*/  ? 1 : 0), texts));
+                    insert(taskIndex, (key, SortValue.Compare, SortValue2, SortValue.Group, (byte)(skip ? 2 : Selected != null && Selected(key)  ? 1 : 0), genData));
             }
             void WithFilter(int taskIndex) {
                 // Each task goes through it's slice of data, runs virtual Skip condition
@@ -122,7 +111,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                         ++skipped[dataT.TaskIndex];
                         continue; // remember how many we skipped
                     }
-                    PerformFilter(dataT.TaskIndex, key, GetTexts(key), Disable != null && Disable(key)); // feeds it to the filter.
+                    PerformFilter(dataT.TaskIndex, key, GetData(key), Disable != null && Disable(key)); // feeds it to the filter.
                 }
             }
             // Depending what kinds of values we are sorting, we will let the sorter know how to bucket/compare it
@@ -176,7 +165,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                         continue; // remember how many we skipped
                     }
                     // feeds it directly to to the SourceList, skipping the filter
-                    insert(dataT.TaskIndex, (key, 0, 0, null, (byte)(Disable != null && Disable(key) ? 2 : Selected != null && key.Equals(Selected) ? 1 : 0), GetTexts(key)));
+                    insert(dataT.TaskIndex, (key, 0, 0, null, (byte)(Disable != null && Disable(key) ? 2 : Selected != null && key.Equals(Selected) ? 1 : 0), GetData(key)));
                 }
             }
             // Perform parallel parsing of ItemSource -> SourceList. It performs virtual skips only (no search conditions + sorting).
@@ -194,7 +183,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
             // Add grouping labels (like new days when filtered by DateTime, etc)
             void AddGroup(string Prev, string Now) {
                 if (Prev != "" || Now != "")
-                    SourceList.Add(((Prev == "" ? "" : Prev + " ▲", Now == "" ? "" : "▼ " + Now), 2, []));
+                    SourceList.Add(((Prev == "" ? "" : Prev + " ▲", Now == "" ? "" : "▼ " + Now), 2, null));
             }
             SourceList = [];
             if (Owner.Cancel(cancel) || bucket == null || bucket.Elements.Length <= 0)
@@ -215,7 +204,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                     foreach (var To in bucket.Elements[0]) {
                         if (To.Group != null && To.Group.Text != CurrentGroup) // group boundary detected, add a label
                             AddGroup(CurrentGroup, CurrentGroup = To.Group?.Text ?? "");
-                        SourceList.Add((To.Key, To.Selected, To.Texts));
+                        SourceList.Add((To.Key, To.State, To.Data));
                     }
                     AddGroup(CurrentGroup, CurrentGroup == "" ? "" : GetToday(false)); // final group
 
@@ -260,7 +249,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                     foreach (var To in b.Elements[0]) {
                         if (To.Group != null && To.Group.Text != CurrentGroup) // group boundary detected, add a label
                             AddGroup(CurrentGroup, CurrentGroup = To.Group?.Text ?? "");
-                        SourceList.Add((To.Key, To.Selected, To.Texts));
+                        SourceList.Add((To.Key, To.State, To.Data));
                     }
                 }
                 for (Bucket? b = bucket; b != null; b = b.Next)
@@ -278,7 +267,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
     }
     internal override void RefreshTemplate<IT>(
     IEnumerable<IT>? source,
-    Func<object?, string[]> itemT,
+    Func<object?, IoGen.Data?> itemT,
     Func<object?, string[]> filterCommandT) {
         base.RefreshTemplate(source, itemT, filterCommandT);
         ItemSource = source is IEnumerable<T> typed ? typed : null;

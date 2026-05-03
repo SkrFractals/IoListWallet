@@ -2,32 +2,43 @@
 using Avalonia.Input;
 using System;
 
-namespace IoListWallet.Core.Basic {
-    internal class IoCheckBox : CheckBox {
+namespace IoListWallet.Core.Basic;
 
-        internal event EventHandler<EventArgs>? IsCheckedChangedGuarded;
+internal class IoCheckBox : CheckBox {
 
-        private EventHandler<EventArgs>? response = null;
+    internal event EventHandler<EventArgs>? IsCheckedChangedGuarded;
 
-        internal void SetResponse(EventHandler<EventArgs>? newResponse) {
-            if (newResponse != null) {
-                if (response != null)
-                    IsCheckedChangedGuarded -= response;
+    internal IoTooltips Tooltip;
+    internal bool Trigger = true;
 
-                IsCheckedChangedGuarded += response = newResponse;
-            }
+    private EventHandler<EventArgs>? response = null;
+
+    internal void SetResponse(EventHandler<EventArgs>? newResponse) {
+        if (newResponse != null) {
+            if (response != null)
+                IsCheckedChangedGuarded -= response;
+            IsCheckedChangedGuarded += response = newResponse;
         }
-
-        internal bool Trigger = true;
-
-        internal IoCheckBox() : base() {
-            Cursor = new Cursor(StandardCursorType.Hand);
-            IsCheckedChanged += Guard;
-        }
-        internal void Guard(object? sender, EventArgs e) {
-            if (Trigger)
-                IsCheckedChangedGuarded?.Invoke(sender, e);
-        }
-        protected override Type StyleKeyOverride => typeof(CheckBox);
     }
+    internal IoCheckBox() : base() {
+        Tooltip = new(this, false);
+        Cursor = new Cursor(StandardCursorType.Hand);
+        IsCheckedChanged += Guard;
+    }
+    internal void Guard(object? sender, EventArgs e) {
+        if (Trigger)
+            IsCheckedChangedGuarded?.Invoke(sender, e);
+    }
+    protected override void OnPointerReleased(PointerReleasedEventArgs e) {
+        if (Tooltip.Release()) {
+            e.Handled = true;
+            return;
+        }
+        base.OnPointerReleased(e);
+    }
+    protected override Type StyleKeyOverride => typeof(CheckBox);
+}
+internal class WCheckBox(IoCheckBox check, Viewbox view) {
+    internal IoCheckBox Check = check;
+    internal Viewbox View = view;
 }

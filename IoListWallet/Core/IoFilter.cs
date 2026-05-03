@@ -1,4 +1,4 @@
-﻿using IoListWallet.Core.Panels;
+﻿using IoListWallet.Core.Lists;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -10,12 +10,12 @@ using static IoListWallet.Core.Static.AppSave;
 
 namespace IoListWallet.Core;
 
-using BucketItem = (object Key, IComparable Compare, IComparable Compare2, GroupBorder? Group, byte Selected, string[] Texts);
+using BucketItem = (object Key, IComparable Compare, IComparable Compare2, GroupBorder? Group, byte State, IoGen.Data? Data);
 using FilterItem = (ulong Match, IComparable Compare, GroupBorder? Group);
 
 internal class IoFilter {
 
-    protected string MyHash = new Random().Next(1000000).ToString();
+    //protected string MyHash = new Random().Next(1000000).ToString();
 
     [Save] internal List<FilterType> Filters { get; set { 
             field = value; IoPanel.Dirty(); } } = [];
@@ -37,7 +37,7 @@ internal class IoFilter {
     }
 }
 internal class FilterType {
-    protected string MyHash = new Random().Next(1000000).ToString();
+    //protected string MyHash = new Random().Next(1000000).ToString();
     [Save] internal string Name { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = "";
     [Save] internal ulong Disabled { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = ~(ulong)0; // full bitmask
     [Save] internal bool Group { get; set { field = value; IoPanel.Dirty(); } } = false;
@@ -81,10 +81,10 @@ internal class FilterNumber : FilterType {
     }
     [Save] internal R dRange { get; set { field = value; IoPanel.Dirty(); } } = new(); // default option
     [Save] internal List<R> Range { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = [new()];
-    [Save] internal ulong MinMin { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 0;
-    [Save] internal ulong MaxMin { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = ulong.MaxValue;
-    [Save] internal ulong MinMax { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 0;
-    [Save] internal ulong MaxMax { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = ulong.MaxValue;
+    [Save] internal ulong LowerMin { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 0;
+    [Save] internal ulong LowerMax { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = ulong.MaxValue;
+    [Save] internal ulong UpperMin { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = 0;
+    [Save] internal ulong UpperMax { get; set { if (field == value) return; field = value; IoPanel.Dirty(); } } = ulong.MaxValue;
     internal override FilterItem Process(string Data) {
         ulong mask = 0;
         var parsed = ulong.TryParse(Data, out var parsedNumber);

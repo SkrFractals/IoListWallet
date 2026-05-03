@@ -11,6 +11,7 @@ internal abstract class NetworkCardano : IoNetwork {
             typeof(Address_CardanoByron)];
         Blockchain = "Cardano";
         Ticker = "ADA";
+        Units = [new(6, "ADA"), new(3, "mADA"), new(0, "love"), new(9, "kADA"), new(12, "MADA")];
     }
     internal override string GetNetwork() => (string)MyNetwork;
     internal override bool IsValidAddress(string address) {

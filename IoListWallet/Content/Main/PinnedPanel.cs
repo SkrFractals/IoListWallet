@@ -1,6 +1,7 @@
-﻿using IoListWallet.Core;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core;
+using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Panels;
 using IoListWallet.Structs.Crypto;
 using System.Threading;
 using static IoListWallet.App;
@@ -17,7 +18,7 @@ internal class PinnedPanel : IoListPanel {
                 new FilterText() { Name = "Key" } // Instance Key 
                
             ], SortIndex = 0, SortIndex2 = 0, Increasing = true, Increasing2 = true
-        }, [], 2);
+        }, new Gen_Buttons(2), []);
     //internal override bool IsModal() => true;
     internal override void RefreshData(int job, CancellationToken? token) {
         if (GetProfile is not IoProfile profile)
@@ -29,10 +30,10 @@ internal class PinnedPanel : IoListPanel {
         MyList[0].RefreshTemplate(Panels, (panel) => {
             var p = panel as IoPanel;
             var k = p != null ? p.Key == "" ? L(p.GetType().Name) : L(p.GetType().Name) + " - " + p.Key : "";
-            return [ // Columns:
+            return new Gen_Buttons.GenData([ // Columns:
                 "T_OpenPinned", p != null && p.UserTitle != "" ? p.UserTitle + "\n" + k : k, // Goto Panel
                 "T_UnpinPinned", L("UnpinPinned") // Unpin
-                ];
+                ]);
         }, (panel) => panel is IoPanel p ? [p.UserTitle, L(p.GetType().Name), L(p.Key)] : []);
         base.RefreshData(job, token);
     }
@@ -44,15 +45,15 @@ internal class PinnedPanel : IoListPanel {
         if (ParentPanel != null && To != null)
             OpenPanel(FromK(ParentPanel) ?? AppMainMenu, To.GetType(), To.Key);
     }
-    protected override void OnClickButton(object? s, ClickButtonEventArgs e) {
+    protected override void OnClickRow(object? s, IoListBase.ClickRowEventArgs e) {
         if (GetProfile is not IoProfile profile)
             return;
         switch (e.Index) {
             case 0: // Select Pinned
-                base.OnClickButton(s, e);
+                base.OnClickRow(s, e);
                 break;
             case 1: // Unpin
-                var b = e.ClickedButton ?? throw new("Failed LastPinned.OnClickButton");
+                var b = e.ClickedRow as WToggleButton ?? throw new("Failed LastPinned.OnClickButton");
                 var To = (IoPanel?)b.Button.Tag;
                 if (To != null) {
                     profile.Pan.PinnedPanels.Remove(To.GetK);

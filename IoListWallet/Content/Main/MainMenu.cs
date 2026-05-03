@@ -1,9 +1,9 @@
-﻿using IoListWallet.Core;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core;
+using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Panels;
 using IoListWallet.IoPanels.Network;
 using IoListWallet.IoPanels.Profile;
-using IoListWallet.Structs.Crypto;
 using System;
 using System.Threading;
 using static IoListWallet.App;
@@ -14,8 +14,8 @@ namespace IoListWallet.IoPanels.Main;
 internal enum MainMenuButtons {
     ProfileSelect,
     NetworkSelect,
+    WalletSelect,
     AccountSelect,
-    OpenAccount,
     Transactions
 }
 internal class MainMenu : IoListPanel {
@@ -34,13 +34,14 @@ internal class MainMenu : IoListPanel {
                     Match = [~(ulong)0],
                     EnumType = typeof(MainMenuButtons).Name }//,new FilterText() { Name = "Text" }, // Text 
             ], SortIndex = 0, SortIndex2 = 0, Increasing = true, Increasing2 = true},
-            [], // No Tool Buttons
-            2, // 0 = Select Network, 1 = Edit Network 
+            new Gen_Buttons(2), // 0 = Select Network, 1 = Edit Network 
+            [("T_Help",L("Help"))], // No Tool Buttons
             1, // Only a single merged filter page 
             0, (object? o) => ((MainMenuButtons?)o ?? MainMenuButtons.ProfileSelect) switch {
                 MainMenuButtons.NetworkSelect => !IsCorrectPassword(),
-                MainMenuButtons.AccountSelect => GetNetwork == null || GetNetwork == null,
-                MainMenuButtons.OpenAccount => GetWallet == null || GetWallet?.Account == null,
+                MainMenuButtons.WalletSelect => GetNetwork == null,
+                MainMenuButtons.AccountSelect => GetWallet == null,
+                //MainMenuButtons.OpenAccount => GetWallet == null || GetWallet?.Account == null,
                 MainMenuButtons.Transactions => (GetNetworks?.Count ?? 0) <= 0,
                 _ => false,
             }, (object? o) => ((MainMenuButtons?)o ?? MainMenuButtons.ProfileSelect) switch {
@@ -56,36 +57,39 @@ internal class MainMenu : IoListPanel {
             (button) => { // Button Row Templates:
                 var p = GetProfile;
                 var n = GetNetwork;
-                var a = GetWallet?.Accounts;
+                //var a = GetWallet?.Accounts;
+                var w = GetWallet;
                 var loggedIn = IsCorrectPassword();
-                return (MainMenuButtons?)button switch {
-                    MainMenuButtons.ProfileSelect => [
-                        "T_MenuSelectProfile", L("MainMenu.ProfileSelect") + ": " + (p != null ? p.Name == "" ? L("NoName") : p.Name : L("Select")),
-                    "T_MenuEditProfile", L(loggedIn ? "EditProfile" : "Login")],
-                    MainMenuButtons.NetworkSelect => [
-                        (n == null ? "-" : "") + "T_MenuSelectNetwork",
-                    loggedIn ? L("MainMenu.NetworkSelect") + ": " + (n == null ? L("Select") : L(n.Blockchain) + " - " + L(n.GetNetwork())) : L("PleaseLogin"),
-                    "T_EditNetwork",
-                    L("EditNetwork")],
-                    MainMenuButtons.AccountSelect => [
-                        (GetWallet == null ? "-" : "") + "T_MenuSelectAccount" ,
-                     !loggedIn ? L("PleaseLogin") : (n != null)
-                        ? ( L("MainMenu.WalletSelect") + ": " + (GetWallet?.Name ?? L("Select"))) + "\n" + (
-                            L("MainMenu.AccountSelect") + ": " + (GetAccount?.Name ?? L("Select")))
-                        : L("PleaseSelectNetwork") , // if network is not selected
+                string? login() => loggedIn ? null : L("PleaseLogin");
+                string? guard() => login() ?? (n != null ? null : L("PleaseSelectNetwork"));
+                return new Gen_Buttons.GenData((MainMenuButtons?)button switch {
+                    MainMenuButtons.ProfileSelect => ["T_MenuSelectProfile",
+                        L("MainMenu.ProfileSelect") + ": " + (p != null ? p.Name == "" ? L("NoName") : p.Name : L("Select")),
+                        "T_MenuEditProfile", 
+                        L(loggedIn ? "EditProfile" : "Login")],
+                    MainMenuButtons.NetworkSelect => [(n == null ? "-" : "") + "T_MenuSelectNetwork",
+                        login() ?? (L("MainMenu.NetworkSelect") + ": " + (n == null ? L(p?.Networks.Count > 0 ? "Select" : "Add") : L(n.Blockchain) + " - " + L(n.GetNetwork()))),
+                        "T_EditNetwork",
+                        L("EditNetwork")],
+                    MainMenuButtons.WalletSelect => [(w == null ? "-" : "") + "T_MenuSelectWallet",
+                        guard() ?? (L("MainMenu.WalletSelect") + ": " + (w?.Name ?? L(n?.Wallets.Count > 0 ? "Select" : "Add"))),
                     "T_EditWallet",
                     L("EditWallet")],
-                    MainMenuButtons.OpenAccount => [
+                    MainMenuButtons.AccountSelect => [(GetAccount == null ? "-" : "") + "T_MenuSelectAccount" ,
+                        guard() ?? (L("MainMenu.AccountSelect") + ": " + (GetAccount?.Name ?? L(w?.Accounts.Count > 0 ? "Select" : "Add"))),
+                    "T_EditWallet",
+                    L("EditWallet")],
+                    /*MainMenuButtons.OpenAccount => [
                          (GetAccount == null ? "-" : "") + "T_MenuOpenAccount",
                     L(!loggedIn ? "PleaseLogin" : (a != null)
                         ? "OpenAccount" : n != null
                             ? "PleaseSelectAccount" : "PleaseSelectNetwork"),
-                    "T_EditAccount", "EditAccount"],
-                    MainMenuButtons.Transactions => [
-                         (n == null ? "-" : "") + "T_MenuTransactions",  L(!loggedIn ? "PleaseLogin" :(GetNetworks?.Count ?? 0) <= 0 ? "PleaseAddNetworks" : "Transactions"), // Transactions Button
+                    "T_EditAccount", "EditAccount"],*/
+                    MainMenuButtons.Transactions => [(n == null ? "-" : "") + "T_MenuTransactions",  
+                        guard() ?? "Transactions", // Transactions Button
                     "T_AllTransactions", L("AllTransactions")],
                     _ => ["--"]
-                };
+                });
             }, (o) => { // Filter Templates:
                 var A = (MainMenuButtons?)o;
                 return A == null ? [] : [   // Search Data:
@@ -96,8 +100,11 @@ internal class MainMenu : IoListPanel {
         base.RefreshData(job, token);
     }
     protected override object? Selected(int from) => GetProfile?.Networks;
-    protected override void OnClickButton(object? s, ClickButtonEventArgs e) {
-        var b = e.ClickedButton ?? throw new("Failed ListMainMenu.OnClickButton");
+    protected override void OnClickTool(object? s, IoListBase.ClickToolEventArgs e) {
+        OpenRefreshPanel(this, typeof(Tutorial), "");
+    }
+    protected override void OnClickRow(object? s, IoListBase.ClickRowEventArgs e) {
+        var b = e.ClickedRow as WToggleButton ?? throw new("Failed ListMainMenu.OnClickButton");
         var N = (MainMenuButtons?)b.Button.Tag;
         if (N != null) switch (e.Index) {
             case 0: // Main button - Edit Address

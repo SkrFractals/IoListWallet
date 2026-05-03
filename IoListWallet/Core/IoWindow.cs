@@ -18,24 +18,12 @@ internal class IoWindow : Window {
     [Save]
     internal double MyHeight { get; set { Height = field = value; Dirty(); } } = 120;
     [Save]
+    internal bool Snapped { get; set { field = value; Dirty(); } } = false;
+    [Save]
     internal PixelPoint MyPosition { get; set { Position = field = value; Dirty(); } }
-    /*[Save] internal bool WindowVisible { get; set { 
-            if (field = value) {
-                if (IsWindow(OpenedFrom, out var o)) 
-                    Show(o!); 
-                else 
-                    Show(); 
-            } else 
-                Hide(); 
-            IoPanel.Dirty(); 
-        } } = true;*/
-    //[Save]
-    internal int Index;// { get; set { field = value; IoPanel.Dirty(); } } = 0;
-    internal bool IsClosing = false, isDragging = false, isDockDragging = false;
 
-    //private bool _dragging;
-    //private PixelPoint _lastPosition;
-    //private DateTime _lastMoveTime;
+    internal int Index;
+    internal bool IsClosing = false, isDragging = false, isDockDragging = false;
 
     internal void ReLink() {
         MyMainPanel.DockHost.Content = MyMainPanel.Dock.Build(true, true);
@@ -68,7 +56,7 @@ internal class IoWindow : Window {
 
     private bool DoNotClamp = false;
     void ClampToScreen(object? s, SizeChangedEventArgs e) {
-        if (DoNotClamp) 
+        if (DoNotClamp || Snapped || WindowState != WindowState.Normal) 
             return;
         DoNotClamp = true;
         var screen = Screens.ScreenFromWindow(this)?.WorkingArea
@@ -127,7 +115,7 @@ internal class IoWindow : Window {
 
     internal void DragStarted() {
         isDragging = true;
-        if (GetDisplayMode != IMode.MultiWindow || MyMainPanel == AppMainPanel || (FromK(MyMainPanel.Dock.Original)?.IsModal() ?? true))
+        if (WindowState != WindowState.Normal || GetDisplayMode != IMode.MultiWindow || MyMainPanel == AppMainPanel || (FromK(MyMainPanel.Dock.Original)?.IsModal() ?? true))
             return;
         MyMainPanel.OverlayGrid.IsVisible = isDockDragging = true;
         Opacity = 0.25f;
@@ -141,17 +129,20 @@ internal class IoWindow : Window {
     internal void DoubleTap() {
         if (GetDisplayMode != IMode.MultiWindow)
             return;
-        Maximize();
+        ToggleMaximize();
         DragEnded();
     }
-    internal void Maximize() {
+    internal void ToggleMaximize() {
+        Snapped = false;
         DoNotClamp = true;
         if (WindowState == WindowState.Normal) {
+            MyPosition = Position;
             ExtendClientAreaToDecorationsHint = false;
             WindowState = WindowState.Maximized;
         } else {
             ExtendClientAreaToDecorationsHint = GetDisplayMode == IMode.MultiWindow;
             WindowState = WindowState.Normal;
+            Position = MyPosition;
         }
         DoNotClamp = false;
         FromK(MyMainPanel.Dock.Original)?.UpdateMax();
@@ -172,6 +163,8 @@ internal class IoWindow : Window {
     protected override void OnSizeChanged(SizeChangedEventArgs e) {
         base.OnSizeChanged(e);
         MyMainPanel.Dock.RefreshMinSize();
+        if (WindowState != WindowState.Normal || Snapped)
+            return;
         MyWidth = Width;
         MyHeight = Height;
     }

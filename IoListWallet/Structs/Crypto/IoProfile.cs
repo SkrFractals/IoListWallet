@@ -2,7 +2,6 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using IoListWallet.Core;
-using IoListWallet.Core.Panels;
 using IoListWallet.IoPanels.Profile;
 using System;
 using System.Collections.Generic;
@@ -119,7 +118,19 @@ internal class IoProfile {
     [Save] // Titlebar color (only for multi-window mode)
     internal bool TitleUnlock { get; set { field = value; RefreshTitle(); Dirty = true; } } = true;
     [Save] // Titlebar color (only for multi-window mode)
-    internal Color TitleColor { get; set {  field = value; RefreshTitle(); Dirty = true; } } = Colors.DarkRed; // TODO implement settings
+    internal Color TitleColor { get; set {  field = value; RefreshTitle(); Dirty = true; } } = Colors.DarkRed;
+    [Save] // Custom Title text allowed? If not, the edit title text buttons will get hidden
+    internal bool TitleText { get; set { field = value; RefreshTitle(); Dirty = true; } } = true;
+    [Save] // Enables Pin System (disabling it will hide Pin and Pinned buttons from the titlebar)
+    internal bool Pins { get; set { field = value; RefreshTitle(); Dirty = true; } } = true;
+    [Save] // Enables Home Buttons (disabling it will hide Home buttons from the titlebar)
+    internal bool Homes { get; set { field = value; RefreshTitle(); Dirty = true; } } = true;
+    [Save] // Dividers of thousands (before decimal point)
+    internal string Thousand { get; set { field = value; Size(); Dirty = true; } } = ","; // TODO implement
+    [Save] // Decimal point symbol
+    internal string Decimal { get; set { field = value; Size(); Dirty = true; } } = "."; // TODO implement
+    [Save] // Dividers of thousanths (after decimal point)
+    internal string Thousanth { get; set { field = value; Size(); Dirty = true; } } = ""; // TODO implement
     #endregion
 
     #region PRO - Performance Settings:
@@ -157,7 +168,7 @@ internal class IoProfile {
     internal ulong BackgroundOpacity {
         get; set {
             BackgroundBrush ??= new ImageBrush(Background) {
-                Stretch = Stretch.Fill,
+                Stretch = BackgroundStretch,
                 Opacity = value * .01
             };
             BackgroundBrush.Opacity = (field = value) * .01;
@@ -166,6 +177,19 @@ internal class IoProfile {
             Dirty = true;
         }
     } = 25;
+    [Save] // How many merge outputs in bulk will get pushed across tasks
+    internal Stretch BackgroundStretch {
+        get; set {
+            BackgroundBrush ??= new ImageBrush(Background) {
+                Stretch = BackgroundStretch,
+                Opacity = BackgroundOpacity * .01
+            };
+            BackgroundBrush.Stretch = field = value;
+            foreach (var p in Pan.LoadedPanels)
+                p.Value.Background = BackgroundBrush;
+            Dirty = true;
+        }
+    } = Stretch.UniformToFill;
     internal Bitmap? Background { get; set {
 
             if (!App.DisableSaving) {
@@ -176,7 +200,7 @@ internal class IoProfile {
                 value?.Save(fs); // saves as PNG by default
             }
             BackgroundBrush ??= new ImageBrush(value) {
-                Stretch = Stretch.Fill,
+                Stretch = BackgroundStretch,
                 Opacity = BackgroundOpacity * .01
             };
             BackgroundBrush.Source = field = value;

@@ -13,9 +13,9 @@ internal class IoSegmentedTextBox : UserControl {
 
     internal string Text { get; set { field = value; Refresh(); } }
 
-    private readonly IoInfoTextBlock first = new();
-    private readonly IoInfoTextBlock middle = new();
-    private readonly IoInfoTextBlock last = new();
+    private readonly TextBlock first = new() { Classes = { "info" } };
+    private readonly TextBlock middle = new() { Classes = { "info" } };
+    private readonly TextBlock last = new() { Classes = { "info" } };
     private readonly ScrollViewer scroll;
     private readonly Grid grid = new();
 
@@ -41,7 +41,7 @@ internal class IoSegmentedTextBox : UserControl {
         middle.Text = t.Substring(MinFirst, t.Length - MinFirst - MinLast);
         last.Text = t[^MinLast..];
         int col = 0, ranChars = 0;
-        void ApplyColorPattern(IoTextBlock block, string text) {
+        void ApplyColorPattern(TextBlock block, string text) {
             if (block.Inlines == null)
                 return;
             block.Inlines.Clear();
@@ -56,7 +56,7 @@ internal class IoSegmentedTextBox : UserControl {
                 ranChars += e - i;
             }
         }
-        void AddCol(IoTextBlock T, GridLength L) {
+        void AddCol(TextBlock T, GridLength L) {
             if (T.Text == "")
                 return;
             ApplyColorPattern(T, T.Text ?? "");
@@ -69,5 +69,4 @@ internal class IoSegmentedTextBox : UserControl {
         AddCol(last, GridLength.Auto);
         Content = grid;
     }
-
 }

@@ -1,5 +1,6 @@
-﻿using IoListWallet.Core;
-using IoListWallet.Core.Panels;
+﻿using IoListWallet.Content.Abstract;
+using IoListWallet.Core;
+using IoListWallet.Core.Lists;
 using System.Threading;
 using static IoListWallet.Core.Static.AppSave;
 
@@ -10,12 +11,12 @@ internal class SubLocaleSelect : IoListPanel {
             new FilterText() { Name = "Code" }, // Language Code 
             new FilterText() { Name = "Name" }, // Language Name 
         ], SortIndex = 1, SortIndex2 = 0, Increasing = true, Increasing2 = true
-    });
+    }, new Gen_Buttons(1));
     internal override bool IsModal() => true;
     internal override string TrueParentType => MakeK(typeof(ProfileContent), "");
     internal override void RefreshData(int job, CancellationToken? token) {
         MyList[0].RefreshTemplate(SubLocaleNames.Keys,
-            (object? code) => ["T_ProfileContent.SelectSubLanguageEntry", code is string s ? SubLocaleNames[s] : "Error"],
+            (object? code) => new Gen_Buttons.GenData(["T_ProfileContent.SelectSubLanguageEntry", code is string s ? SubLocaleNames[s] : "Error"]),
             (code) => code is string c ? [ // Search Data:
                 c, // Language Code
                 SubLocaleNames.TryGetValue(c, out var n) ? n : "" // Language Name

@@ -1,29 +1,44 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Input;
 using System;
 
-namespace IoListWallet.Core.Basic {
-    internal class IoComboBox : ComboBox {
+namespace IoListWallet.Core.Basic;
 
-        internal event EventHandler<EventArgs>? SelectionChangedGuarded;
+internal class IoComboBox : ComboBox {
 
-        internal bool Trigger = true;
+    internal event EventHandler<EventArgs>? SelectionChangedGuarded;
 
-        private EventHandler<EventArgs>? response = null;
+    internal IoTooltips Tooltip;
+    internal bool Trigger = true;
 
-        internal void SetResponse(EventHandler<EventArgs>? newResponse) {
-            if (newResponse != null) {
-                if (response != null)
-                    SelectionChangedGuarded -= response;
+    private EventHandler<EventArgs>? response = null;
 
-                SelectionChangedGuarded += response = newResponse;
-            }
+    internal void SetResponse(EventHandler<EventArgs>? newResponse) {
+        if (newResponse != null) {
+            if (response != null)
+                SelectionChangedGuarded -= response;
+            SelectionChangedGuarded += response = newResponse;
         }
-        internal IoComboBox() : base() 
-            => SelectionChanged += Guard; 
-        internal void Guard(object? sender, EventArgs e) {
-            if (Trigger)
-                SelectionChangedGuarded?.Invoke(sender, e);
-        }
-        protected override Type StyleKeyOverride => typeof(ComboBox);
     }
+    internal IoComboBox() : base() {
+        Tooltip = new(this, false);
+        SelectionChanged += Guard;
+    }
+    internal void Guard(object? sender, EventArgs e) {
+        if (Trigger)
+            SelectionChangedGuarded?.Invoke(sender, e);
+    }
+    protected override void OnPointerReleased(PointerReleasedEventArgs e) {
+        if (Tooltip.Release()) {
+            e.Handled = true;
+            return;
+        }
+        base.OnPointerReleased(e);
+    }
+
+    protected override Type StyleKeyOverride => typeof(ComboBox);
+}
+internal class WComboBox(IoComboBox combo, Viewbox view) {
+    internal IoComboBox Combo = combo;
+    internal Viewbox View = view;
 }

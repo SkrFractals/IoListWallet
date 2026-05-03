@@ -1,4 +1,4 @@
-﻿using IoListWallet.Core.Panels;
+﻿using IoListWallet.Core;
 using NBitcoin;
 using System.Collections.Generic;
 using static IoListWallet.Core.Static.AppSave;
