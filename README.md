@@ -1,7 +1,19 @@
 # IoList Wallet  
   
 > Searchable-List-based GUI for UTxO/eUTxO blockchain wallets, full coin control.  
-  
+
+** Status
+-Currently 0 funding, and I can't continue working on this for free any longer. I hope I get even a tiny amount of funding for this project.
+-GUI level parts and profiles are 99.9% finished. Content Windows can not be built with ease and support everything I've coded.
+-There is only 1 last structure I'd need to make more advanced, before anything I could imagine with wallet stuff will begin to be easily buildable on top of it.
+-Any willing help for this project will be greatly appreciated
+
+These are some small examples how it works and looks like:
+<img width="1422" height="951" alt="io2" src="https://github.com/user-attachments/assets/aad7027e-f968-4e91-91f2-d49ec5c14adb" />
+<img width="1405" height="1599" alt="io1" src="https://github.com/user-attachments/assets/62c0cb50-70f6-413e-bb8f-d61850bbb0c6" />
+<img width="1433" height="1072" alt="io3" src="https://github.com/user-attachments/assets/99cbee01-414e-4ff9-8be8-fd3590c7ee42" />
+<img width="1726" height="851" alt="io4" src="https://github.com/user-attachments/assets/9a0ef262-ed0d-48a2-8845-f3cfe108040a" />
+
 ## Structure  
   
 Every IoPanel (root content inside a window/dock) in the app is either an IoBook or an IoList:  
