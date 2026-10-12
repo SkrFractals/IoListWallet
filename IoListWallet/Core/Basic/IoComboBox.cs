@@ -8,6 +8,8 @@ internal class IoComboBox : ComboBox {
 
     internal event EventHandler<EventArgs>? SelectionChangedGuarded;
 
+    internal bool DontSelect = false;
+
     internal IoTooltips Tooltip;
     internal bool Trigger = true;
 
@@ -33,9 +35,10 @@ internal class IoComboBox : ComboBox {
             e.Handled = true;
             return;
         }
+        if (DontSelect && IsDropDownOpen)
+            return;
         base.OnPointerReleased(e);
     }
-
     protected override Type StyleKeyOverride => typeof(ComboBox);
 }
 internal class WComboBox(IoComboBox combo, Viewbox view) {

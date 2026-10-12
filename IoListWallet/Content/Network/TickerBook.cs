@@ -8,7 +8,7 @@ using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 using static IoListWallet.Structs.Crypto.IoNetwork;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class TickerBook : IoListPanel {
     internal bool initTicker = true;
     internal override bool IsModal() => true;
@@ -21,11 +21,11 @@ internal class TickerBook : IoListPanel {
                 new FilterNumber() { Name = "Decimals", UpperMax = 19, LowerMax = 19, dRange = new(0, 19), Range = [new(0, 19)] }, // Decimals
                 new FilterText() { Name = "Description" }, // Description
         ], SortIndex = 0, SortIndex2 = 1, Increasing = true, Increasing2 = true
-        }, new Gen_Buttons(1), [("T_AddTicker", L("AddTicker"))]); // 0 = Add Ticker
+        }, new Gen_Buttons(1), [("T_AddTicker", L("Add") + " " + L("Ticker"))]); // 0 = Add Ticker
     }
     private static string F = "Failed TickerBook.";
-    internal override IoPanel OnOpen(bool initial = false) {
-        var r = base.OnOpen(initial);
+    internal override IoPanel OnOpen() {
+        var r = base.OnOpen();
         var n = TryNetwork(MyNetwork) ?? throw new(F + "OnOpen.TryNetwork");
         if (n.TickerBook.Count <= 0 && initTicker) {
             initTicker = false;
@@ -33,7 +33,7 @@ internal class TickerBook : IoListPanel {
         }
         return r;
     }
-    internal Type? MyNetwork => Networks.TryGetValue(Key, out Type? Net) ? Net : null;
+    internal Type? MyNetwork => Networks.TryGetValue(Key, out var Net) ? Net : null;
     protected override string CustomTitle()
         => " - " + MyNetwork?.Name ?? "";
     internal override string TrueParentType => MakeK(typeof(NetworkContent), Key);
@@ -52,7 +52,7 @@ internal class TickerBook : IoListPanel {
         switch (e.Index) {
             case 0: // Edit Ticker
                 var b = e.ClickedRow as WToggleButton ?? throw new(F + "OnClickButton");
-                TickerBookEntry A = b.Button.Tag as TickerBookEntry ?? throw new(F + "Button.Tag is not an TickerBookEntry!");
+                var A = b.Button.Tag as TickerBookEntry ?? throw new(F + "Button.Tag is not an TickerBookEntry!");
                 ushort MyIndex = A.Index;
                 OpenRefreshPanel(this, typeof(TickerContent), MyIndex.ToString() + "." + Key);
                 break;

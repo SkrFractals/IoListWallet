@@ -10,7 +10,7 @@ using IoListWallet.Content.Abstract;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Dock;
 using IoListWallet.Core.Static;
-using IoListWallet.IoPanels.Main;
+using IoListWallet.Content.Main;
 using IoListWallet.Structs.Crypto;
 using System;
 using System.Collections.Generic;
@@ -98,13 +98,16 @@ internal abstract class IoPanel : IoUserControl {
         pinned = MakeToolbarButton(L("Pinned"));
         pinned.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
         pinned.Click += (_, _) => Pinned_Click();
-        ConstructionHelpers.SetTip(pinned, L("T_Pinned"));
+        //ConstructionHelpers.SetTip(pinned, "T_Pinned");
 
         home = MakeToolbarButton(L("Home"));
         home.Click += (s, e) => ConstructionHelpers.CancelToggle(s, e);
         home.Click += (_, _) => Home_Click();
         home.Text = L("Home");
-        ConstructionHelpers.SetTip(pinned, L("T_Home"));
+        //ConstructionHelpers.SetTip(pinned, "T_Home");
+        hide = MakeToolbarButton("");
+        hide.Click += ConstructionHelpers.CancelToggle;
+        hide.Click += HideButton_Click;
         min = MakeToolbarButton("_");
         min.Click += ConstructionHelpers.CancelToggle;
         min.Click += MinButton_Click;
@@ -155,9 +158,10 @@ internal abstract class IoPanel : IoUserControl {
                 ? MyTitle 
                 : value;
             titleTextBox?.Text = field = value;
-            Dirty(); 
-            if(notConst) 
-                RefreshPanel((typeof(PinnedPanel), ""), true); 
+            Dirty();
+            var k = (typeof(PinnedPanel), "");
+            if(IsOpened(k))
+                RefreshPanel(k, true); 
         } } = "";
     [Save] // In multiwindow mode, you set the titlebar color
     internal Color TitleColor { get; set {
@@ -167,8 +171,18 @@ internal abstract class IoPanel : IoUserControl {
             square.Background = ConstructionHelpers.MakeLeftShade();
             SetTitleBarBackground();
             Dirty(); } } = GetProfile?.TitleColor ?? DPro.TitleColor; // default titlebar color (only show in setting if multiwindow)
-    
-    protected bool notConst = true, dragOut = false;
+    [Save] // Hide sensitive numbers
+    internal bool HideNumbers {
+        get; set {
+            if (field == value)
+                return;
+            field = value;
+            RefreshAll(false);
+            Dirty();
+        }
+    } = false;
+
+    protected bool /*notConst = true, */dragOut = false;
     internal int OriginalMainWindow;
     #endregion
 
@@ -179,6 +193,7 @@ internal abstract class IoPanel : IoUserControl {
     internal virtual bool DeleteWhenClosed() => false;
     internal Color GetTitleColor { get => (GetProfile?.TitleUnlock ?? false) ? TitleColor : GetProfile?.TitleColor ?? DPro.TitleColor; }
     internal string GetTitle() => UserTitle == "" || !(GetProfile?.TitleText ?? false) ? MyTitle : UserTitle;
+    protected bool GetHidden() => HideNumbers || (FromK(ParentPanel) is IoPanel p && p.GetHidden());
     #endregion
 
     #region Pointers
@@ -344,7 +359,8 @@ internal abstract class IoPanel : IoUserControl {
     private IoToggleButton editTitle;
     private ColorPicker colorPick = new();
     private WSToggleButton? colorPickB;
-    private IoToggleButton pin; 
+    private IoToggleButton pin;
+    private IoToggleButton hide;
     private IoToggleButton min; 
     private IoToggleButton win;
     private IoToggleButton back;
@@ -387,6 +403,7 @@ internal abstract class IoPanel : IoUserControl {
         if(TitleColor != colorPick.Color)
             TitleColor = colorPick.Color;
     }
+    private void HideButton_Click(object? s, EventArgs e) => HideNumbers = !HideNumbers;
     private void MinButton_Click(object? s, EventArgs e) {
         if (TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow w)
             w.WindowState = WindowState.Minimized; // TODO maybe returning from here should fix border properties...?
@@ -477,7 +494,7 @@ internal abstract class IoPanel : IoUserControl {
                     if (d.Snapped) {
                         // unsnap
                         d.Snapped = false;
-                        d.Position = d.MyPosition;
+                        d.Position = new(d.MyX, d.MyY);
                         d.Width = d.MyWidth;
                         d.Height = d.MyHeight;
                     } else d.ToggleMaximize(); // unmaximize
@@ -565,7 +582,7 @@ internal abstract class IoPanel : IoUserControl {
                 }
                 iw.Snapped = true;
                 // remember original size to return to when unsnapped
-                iw.MyPosition = win.Position;
+                (iw.MyX, iw.MyY) = (win.Position.X, win.Position.Y);
                 iw.MyWidth = win.Width;
                 iw.MyHeight = win.Height;
             } else if (win is IoFakeWindow fw && refWindow != null) {
@@ -675,9 +692,10 @@ internal abstract class IoPanel : IoUserControl {
             GetMyMainPanel()?.Dock.Original = GetK;
             Dirty();
         }
-        
-
         OnOpen(); // IsVisible = true; +focus on my window
+        Load(Parent);
+    }
+    internal void Load(IoPanel? Parent) {
         // Only set parent if it doesn't cause a loop
         SetTitle();
         var P = Parent;
@@ -688,9 +706,11 @@ internal abstract class IoPanel : IoUserControl {
         ParentPanel = Parent?.GetK;
     }
     internal void Unmask() => UpdateOverlay(Colors.Transparent, 1000, -(GetProfile?.UnMaskTime ?? DPro.UnMaskTime), null, new(0, 0));
-    internal virtual IoPanel OnOpen(bool initial = false) {
+    internal virtual IoPanel OnOpen() {
         // Focus on me:
-        ParentDock?.Selected = 0;
+        for (var i = 0; i < ParentDock?.Panel.Count; ++i)
+            if (ParentDock.Panel[i] == GetK)
+                ParentDock?.Selected = i;
         Unmask();
         IsVisible = true;
         if (ParentDock == null)
@@ -985,10 +1005,10 @@ internal abstract class IoPanel : IoUserControl {
 
     #region Layout
     internal void UpdateMax() {
-        win.Text = L(GetMyMainPanel()?.Dock.Original == GetK
+        win.Text = GetMyMainPanel()?.Dock.Original == GetK
             && TryWindow(GetMyMainPanel()?.MyWindowK ?? -1) is IoWindow w
             && w.WindowState == WindowState.Normal
-            ? "🗖" : "⧉");
+            ? "🗖" : "⧉";
         dragOut = unmax = false;
         startPointer = null;
     }
@@ -1022,13 +1042,17 @@ internal abstract class IoPanel : IoUserControl {
     internal override Size PrepareLayout(Size available) 
         => GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK && GetDisplayMode == IMode.MultiWindow
         ? MeasureService.Measure(Titlebar) : new(0, 0);
-    
-    internal virtual void Refresh(int job) => RefreshTitleBar();
+
+    internal virtual void Refresh(int job) {
+        RefreshTitleBar();
+        //UpdateMinSize();
+    }
     private void SetTitleBarBackground(){
         var amNotOriginal = GetMyMainPanel() is IoMainPanel myMain && myMain.Dock.Original != GetK;
 
         Titlebar.Background = GetDisplayMode == IMode.MultiWindow ? amNotOriginal ? new SolidColorBrush(GetTitleColor) : ConstructionHelpers.MakeGradBrush(GetTitleColor) : null;
     }
+
     internal void RefreshTitleBar() {
         if (ParentDock == null || GetProfile is not IoProfile profile)
             return;
@@ -1036,14 +1060,16 @@ internal abstract class IoPanel : IoUserControl {
         ? "CloseApp"
         : GetDisplayMode == IMode.MultiWindow
             ? "CloseWindow" : "Back";
-        ConstructionHelpers.SetTip(back, L("T_" + sBack));
+        //ConstructionHelpers.SetTip(back, "T_" + sBack);
         bool ispinned = GetProfile?.Pan.PinnedPanels.Contains(GetK) ?? false;
         string sPin = ispinned ? "Unpin" : "Pin";
+        string sHide = HideNumbers ? "🕶️" : "👁️";
         pin.FontWeight = ispinned ? FontWeight.Bold : FontWeight.Regular;
         //pin.Content = L(sPin);
         pin.Text = "📌";
+        hide.Text = sHide;
         pin.IsChecked = ispinned;
-        ConstructionHelpers.SetTip(pin, L("T_" + sPin));
+        //ConstructionHelpers.SetTip(pin, "T_" + sPin);
 
         UpdateMax();
         var mw = GetDisplayMode == IMode.MultiWindow;
@@ -1051,7 +1077,12 @@ internal abstract class IoPanel : IoUserControl {
 
         var col = 0;
 
-        MyGrid.Children.Clear();
+        //MyGrid.Children.Clear();
+        foreach (var child in MyGrid.Children.ToList()) 
+            MyGrid.Children.Remove(child);
+        if (titleBarContainer.Content == Titlebar)
+            titleBarContainer.Content = null;
+
         Titlebar.Children.Clear();
         Titlebar.ColumnDefinitions.Clear();
         MyGrid.RowDefinitions.Clear();
@@ -1113,6 +1144,10 @@ internal abstract class IoPanel : IoUserControl {
                 }
             }
         }
+
+        Titlebar.ColumnDefinitions.Add(new ColumnDefinition(gl));
+        Titlebar.Children.Add(hide);
+        Grid.SetColumn(hide, col++);
 
         if (amNotOriginal && mw) {
             if (Titlebar.Parent is ContentControl c)
@@ -1183,6 +1218,9 @@ internal abstract class IoPanel : IoUserControl {
 
         MyGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         MyGrid.Children.Add(MyContent);
+        // weird, when i starch searching fonts, it crashes with any of these following, even thought they are all null
+        // it's almost like MyContent get corrupted somehow.
+        
         MyGrid.Children.Add(TooltipGrid);
         MyGrid.Children.Add(OverlayGrid);
         MyGrid.Children.Add(tooltipHold);

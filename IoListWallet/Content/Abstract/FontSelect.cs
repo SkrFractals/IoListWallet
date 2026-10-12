@@ -1,7 +1,7 @@
 ﻿using Avalonia.Media;
 using IoListWallet.Core;
 using IoListWallet.Core.Lists;
-using IoListWallet.IoPanels.Profile;
+using IoListWallet.Content.Profile;
 using System.Threading;
 
 namespace IoListWallet.Content.Abstract;

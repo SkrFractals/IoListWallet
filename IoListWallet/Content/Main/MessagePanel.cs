@@ -1,7 +1,7 @@
 ﻿using IoListWallet.Content.Abstract;
 using IoListWallet.Core.Books;
 
-namespace IoListWallet.IoPanels.Main;
+namespace IoListWallet.Content.Main;
 internal class MessagePanel : IoBookPanel {
     // Book.Swipe.CancelDrag(); not necessary since it deletes itself on close
     public MessagePanel() : base() => Book.Swipe.OnRightEvent += (_, _) => Close();

@@ -2,7 +2,7 @@
 using IoListWallet.Content.Abstract;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Profile;
+namespace IoListWallet.Content.Profile;
 internal class FontInfoSelect : FontSelect {
     protected override string EntryKey() => "T_ProfileContent.SelectInfoFontEntry";
     protected override FontFamily? Selected(int fromList) 

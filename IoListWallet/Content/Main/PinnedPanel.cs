@@ -7,7 +7,7 @@ using System.Threading;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Main;
+namespace IoListWallet.Content.Main;
 internal class PinnedPanel : IoListPanel {
     internal override bool IsModal() => true;
     public PinnedPanel() : base()
@@ -43,7 +43,7 @@ internal class PinnedPanel : IoListPanel {
         Close();
         var To = (IoPanel?)o;
         if (ParentPanel != null && To != null)
-            OpenPanel(FromK(ParentPanel) ?? AppMainMenu, To.GetType(), To.Key);
+            _ = OpenPanel(FromK(ParentPanel) ?? AppMainMenu, To.GetType(), To.Key);
     }
     protected override void OnClickRow(object? s, IoListBase.ClickRowEventArgs e) {
         if (GetProfile is not IoProfile profile)
@@ -60,7 +60,7 @@ internal class PinnedPanel : IoListPanel {
                     To.Refresh(0); // this ensures the pin icon updates on the actual panel
                     profile.Pan.Dirty = true;
                 }
-                RefreshPanel(this, 1, true);
+                _ = RefreshPanel(this, 1, true);
                 break;
         }
     }

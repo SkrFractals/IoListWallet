@@ -21,9 +21,12 @@ internal class IoDockPanels : IoDock {
     }
     internal override void SanitizeRatios(Size Available) => MySize = Available;
     protected internal override Control _Build(bool refresh, bool relink, bool left, bool right, bool bottom) {
+        if(relink)
+            foreach (var p in Panel)
+                if(FromK(p) is IoPanel r)
+                    r.ParentDock = this;
         if (Panel.Count > Selected && FromK(Panel[Selected]) is IoPanel c) {
-            if (relink) 
-                c.ParentDock = this;
+            c.IsVisible = true;
             if (refresh)
                 c.RefreshTitleBar();
             var amoriginal = (c.GetMyMainPanel()?.Dock.Original ?? "") == c.GetK;

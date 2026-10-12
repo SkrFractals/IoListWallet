@@ -24,7 +24,13 @@ internal class IoMainPanel : IoUserControl {
     internal WTextBlock? OverlayX { get; set; }
     private Grid grid;
     internal bool shrinkRefresh = false;
+
+    internal int rand;
+
     public IoMainPanel() {
+
+        rand = new System.Random().Next(0, 1000000) ;
+
         Dock = new();
         grid ??= new Grid() {
             ColumnDefinitions = [new ColumnDefinition(GridLength.Star)],

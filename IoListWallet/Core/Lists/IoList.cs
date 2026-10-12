@@ -37,7 +37,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
             return true;
         // Filter and Sort:
         List<(ushort TaskIndex, uint Start, uint End)> taskData = [];
-        List<object?> ItemList = ItemSource as List<object?> ?? [..ItemSource];
+        var ItemList = ItemSource as List<object?> ?? [..ItemSource];
         SourceCount = (uint)ItemList.Count;
         if (stopIndex == 0)
             stopIndex = (ushort)ItemList.Count;
@@ -84,7 +84,7 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                 // go through all the filterable fields:
                 while (0 <= --i) {
                     // process all OR conditions, and return sortable value and group
-                    (ulong match, IComparable sort, GroupBorder? border) = filter.Filters[i].Process(data[i]);
+                    (var match, var sort, var border) = filter.Filters[i].Process(data[i]);
                     isMatch &= match;
                     if (match > 0) {
                         // remember the sort values if we are actaully sorting by this one specifically
@@ -100,25 +100,25 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
             }
             void WithFilter(int taskIndex) {
                 // Each task goes through it's slice of data, runs virtual Skip condition
-                var dataT = taskData[taskIndex]; // fetch task data
-                bucket.Elements[dataT.TaskIndex] = []; // initialize bucket
-                for (uint i = dataT.Start; i < dataT.End; ++i) {
+                (var tIndex, var start, var end) = taskData[taskIndex]; // fetch task data
+                bucket.Elements[taskIndex] = []; // initialize bucket
+                for (uint i = start; i < end; ++i) {
                     if (ItemList[(int)i] == null)
                         continue;//null are not even counted
                     if (Owner.Cancel(cancel))
                         return; // cancellation request to stop completely
-                    if (ItemList[(int)i] is not object key || (Skip != null && Skip(key))) {
-                        ++skipped[dataT.TaskIndex];
+                    if (ItemList[(int)i] is not object key || Skip != null && Skip(key)) {
+                        ++skipped[tIndex];
                         continue; // remember how many we skipped
                     }
-                    PerformFilter(dataT.TaskIndex, key, GetData(key), Disable != null && Disable(key)); // feeds it to the filter.
+                    PerformFilter(tIndex, key, GetData(key), Disable != null && Disable(key)); // feeds it to the filter.
                 }
             }
             // Depending what kinds of values we are sorting, we will let the sorter know how to bucket/compare it
             var SortFilter = filter.Filters[filter.SortIndex];
             if (SortFilter is FilterText)
                 bucket.SortType = SortType.Alphabetic;
-            else if (SortFilter is FilterNumber || SortFilter is FilterToken)
+            else if (SortFilter is FilterNumber or FilterToken)
                 bucket.SortType = SortType.Logarithmic;
             // Perform parallel parsing of ItemSource -> SourceList. It performs virtual skips + search conditions + sorting.
             Task[] tasks = new Task[UsedTasks]; // N-1 extra tasks, one of these will be performed synchrtonously in this thread.
@@ -153,19 +153,19 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
         } else {
             void WithoutFilter(int taskIndex) {
                 // Each task goes through it's slice of data, runs virtual Skip condition
-                var dataT = taskData[taskIndex]; // fetch task data
-                bucket.Elements[dataT.TaskIndex] = []; // initialize bucket
-                for (uint i = dataT.Start; i < dataT.End; ++i) {
+                (var tIndex, var start, var end) = taskData[taskIndex]; // fetch task data
+                bucket.Elements[taskIndex] = []; // initialize bucket
+                for (uint i = start; i < end; ++i) {
                     if (ItemList[(int)i] == null)
                         continue;//null are not even counted
                     if (Owner.Cancel(cancel))
                         return; // cancellation request to stop completely
-                    if (ItemList[(int)i] is not object key || (Skip != null && Skip(key))) {
+                    if (ItemList[(int)i] is not object key || Skip != null && Skip(key)) {
                         ++skipped[taskIndex];
                         continue; // remember how many we skipped
                     }
                     // feeds it directly to to the SourceList, skipping the filter
-                    insert(dataT.TaskIndex, (key, 0, 0, null, (byte)(Disable != null && Disable(key) ? 2 : Selected != null && key.Equals(Selected) ? 1 : 0), GetData(key)));
+                    insert(tIndex, (key, 0, 0, null, (byte)(Disable != null && Disable(key) ? 2 : Selected != null && key.Equals(Selected) ? 1 : 0), GetData(key)));
                 }
             }
             // Perform parallel parsing of ItemSource -> SourceList. It performs virtual skips only (no search conditions + sorting).
@@ -193,18 +193,18 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
             var todayDate = DateTime.Now;
             string GetToday(bool increasing) => increasing ? "" : filter.Filters[filter.SortIndex].Name switch {
                 nameof(FilterEpoch) => TodayEpoch.ToString() != CurrentGroup ? TodayEpoch.ToString() : "" ?? "",
-                nameof(FilterDate) => todayDate.Date.ToString() != CurrentGroup ? todayDate.ToString() : "" ?? "",
-                _ => todayDate.Date.ToShortDateString() != CurrentGroup ? todayDate.Date.ToShortDateString() : "" ?? ""
+                nameof(FilterDate) => todayDate.Date.ToShortDateString() != CurrentGroup ? todayDate.Date.ToShortDateString() : "" ?? "",//todayDate.Date.ToString() != CurrentGroup ? todayDate.ToString() : "" ?? "",
+                _ => ""//todayDate.Date.ToShortDateString() != CurrentGroup ? todayDate.Date.ToShortDateString() : "" ?? ""
             };
             if (bucket.ResultArray != null) {
                 // Array version
                 if (bucket.ResultArray.Length > 0) {
                     CurrentGroup = bucket.ResultArray[0].Group?.Text ?? "";
                     AddGroup(CurrentGroup == "" ? "" : GetToday(true), CurrentGroup); // initial group
-                    foreach (var To in bucket.Elements[0]) {
-                        if (To.Group != null && To.Group.Text != CurrentGroup) // group boundary detected, add a label
-                            AddGroup(CurrentGroup, CurrentGroup = To.Group?.Text ?? "");
-                        SourceList.Add((To.Key, To.State, To.Data));
+                    foreach ((var key, _, _, var group, var state, var data) in bucket.Elements[0]) {
+                        if (group != null && group.Text != CurrentGroup) // group boundary detected, add a label
+                            AddGroup(CurrentGroup, CurrentGroup = group?.Text ?? "");
+                        SourceList.Add((key, state, data));
                     }
                     AddGroup(CurrentGroup, CurrentGroup == "" ? "" : GetToday(false)); // final group
 
@@ -246,13 +246,13 @@ internal class IoList<T>(IoPanel owner, (string, string)[] tools) : IoListBase(o
                 CurrentGroup = bucket.Elements[0][0].Group?.Text ?? "";
                 AddGroup(CurrentGroup == "" ? "" : GetToday(true), CurrentGroup); // initial group
                 void ProcessSourceItem(Bucket b) {
-                    foreach (var To in b.Elements[0]) {
-                        if (To.Group != null && To.Group.Text != CurrentGroup) // group boundary detected, add a label
-                            AddGroup(CurrentGroup, CurrentGroup = To.Group?.Text ?? "");
-                        SourceList.Add((To.Key, To.State, To.Data));
+                    foreach ((var key, _, _, var group, var state, var data) in b.Elements[0]) {
+                        if (group != null && group.Text != CurrentGroup) // group boundary detected, add a label
+                            AddGroup(CurrentGroup, CurrentGroup = group?.Text ?? "");
+                        SourceList.Add((key, state, data));
                     }
                 }
-                for (Bucket? b = bucket; b != null; b = b.Next)
+                for (var b = bucket; b != null; b = b.Next)
                     ProcessSourceItem(b);
                 AddGroup(CurrentGroup, CurrentGroup == "" ? "" : GetToday(false)); // final group
             }

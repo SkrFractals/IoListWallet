@@ -9,7 +9,7 @@ using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 using static IoListWallet.Structs.Crypto.IoNetwork.AddressBookEntry;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class AddressContent : IoBookPanel {
     internal override bool IsModal() => true;
     public AddressContent() : base() { }
@@ -75,7 +75,7 @@ internal class AddressContent : IoBookPanel {
                     }*/
                     //ChangeKey(network.Blockchain + " - " + network.GetNetwork() + " - " + text);
                     network.AddressBook[MyIndex].Name = text;
-                    SaveNet();
+                    _ = SaveNet();
                     RefreshAll(); // only to update matches elsewhere
                 }
                 var changeNameBox = MakeTextBox(s + "changeNameBox", this, T + "AddressName",
@@ -89,7 +89,7 @@ internal class AddressContent : IoBookPanel {
                 void selectColor(object? s, EventArgs e) {
                     var c = network.AddressBook[MyIndex].Color = (byte)(((ComboBox?)s)?.SelectedIndex ?? 6);
                     changeNameBox.Text.Foreground = PaletteColors[c];
-                    SaveNet();
+                    _ = SaveNet();
                     RefreshAll(); // only to update matches elsewhere
                 }
                 var selectColorBox = MakeComboBox(s + "selectColorBox", this, T + "SelectAddressColor",
@@ -101,7 +101,7 @@ internal class AddressContent : IoBookPanel {
                     bool WasValid = network.AddressBook[MyIndex].IsValid;
                     network.AddressBook[MyIndex].Address = ((TextBox?)s)?.Text ?? "";
                     validNameBlock.Text.Text = GetIsValid();
-                    SaveNet();
+                    _ = SaveNet();
                     if (WasValid || network.AddressBook[MyIndex].IsValid) // invalid to invalid should not do anything
                         RefreshAll(); // only to update matches elsewhere
                     else RefreshParent();
@@ -113,7 +113,7 @@ internal class AddressContent : IoBookPanel {
                 void selectDeposit(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].RuleDeposit = (AddressBookRule?)((ComboBox?)s)?.SelectedItem ?? AddressBookRule.Allow;
                     RefreshParent();
-                    SaveNet();
+                    _ = SaveNet();
                 }
                 var selectDepositBox = MakeComboBox(s + "selectDepositBox", this, T + "RuleDeposit",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleDeposit,
@@ -121,7 +121,7 @@ internal class AddressContent : IoBookPanel {
                 void valueDeposit(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxDepositValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
                     RefreshParent();
-                    SaveNet();
+                    _ = SaveNet();
                 }
                 var valueDepositBox = MakeTextBox(s + "valueDepositBox", this, T + "RuleDepositValue",
                     network.AddressBook[MyIndex].MaxDepositValue.ToString(), "Maximum", valueDeposit);
@@ -130,7 +130,7 @@ internal class AddressContent : IoBookPanel {
                 void selectWithdraw(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].RuleWithdraw = (AddressBookRule?)((ComboBox?)s)?.SelectedItem ?? AddressBookRule.Allow;
                     RefreshParent();
-                    SaveNet();
+                    _ = SaveNet();
                 }
                 var selectWithdrawBox = MakeComboBox(s + "selectWithdrawBox", this, T + "RuleWithdraw",
                     Enum.GetValues<AddressBookRule>(), network.AddressBook[MyIndex].RuleWithdraw,
@@ -138,7 +138,7 @@ internal class AddressContent : IoBookPanel {
                 void valueWithdraw(object? s, EventArgs e) {
                     network.AddressBook[MyIndex].MaxWithdrawValue = ulong.TryParse(((TextBox?)s)?.Text, out var d) ? d : 0;
                     RefreshParent();
-                    SaveNet();
+                    _ = SaveNet();
                 }
                 var valueWithdrawBox = MakeTextBox(s + "valueWithdrawBox", this, T + "RuleWithdrawValue",
                     network.AddressBook[MyIndex].MaxWithdrawValue.ToString(), "Maximum", valueWithdraw);
@@ -146,8 +146,8 @@ internal class AddressContent : IoBookPanel {
                 // Remove Address
                 void clickRemoveAddress(object? s, EventArgs e) {
                     // shake
-                    network.AddressBook.Remove(MyIndex);
-                    RefreshPanel((typeof(AddressBook), MyNetName), true);
+                    _ = network.AddressBook.Remove(MyIndex);
+                    _ = RefreshPanel((typeof(AddressBook), MyNetName), true);
                     Delete(); // totally delete this panel instead of just closing.
                     RefreshAll(); // only to update matches elsewhere
                 }
@@ -169,6 +169,6 @@ internal class AddressContent : IoBookPanel {
     private void RefreshParent() {
         //if(ParentPanel != null && IoPanel.SplitK(ParentPanel) is (Type, string) k && k.Type == typeof(AddressBook))
         //RefreshPanel((typeof(AddressBook), MyNetName), true);
-        RefreshPanel(ParentPanel, true);
+        _ = RefreshPanel(ParentPanel, true);
     }
 }

@@ -2,7 +2,7 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using IoListWallet.Core;
-using IoListWallet.IoPanels.Profile;
+using IoListWallet.Content.Profile;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -238,7 +238,15 @@ internal class IoProfile {
         // TODO: Manually dirtied:
 
         [Save] // All Loaded panels (even closed ones, as long as they were not deleted)
-        internal Dictionary<string, IoPanel> LoadedPanels { get; set { field = value; Dirty = true; } } = [];
+        internal Dictionary<string, IoPanel> LoadedPanels { get; set { field = value; Dirty = true;
+                if (GetProfile is not IoProfile profile)
+                    throw new("No profile");
+                foreach (var P in value) {
+                    P.Value.IsVisible = true;
+                    P.Value.Load(FromK(P.Value.ParentPanel));
+                    P.Value.IsVisible = false;
+                }
+            } } = [];
         [Save] // All Pinned pannels, that will appear in the Pinned list, holding the panel's KeyIds
         internal List<string> PinnedPanels { get; set { field = value; Dirty = true; } } = [];
     }
@@ -254,27 +262,40 @@ internal class IoProfile {
                 field = value;
                 Dirty = true;
                 foreach (var P in value) {
-                    P.Value.IsVisible = false;
+                    //P.Value.IsVisible = false; // not needed
                     P.Value.MyMainPanel.MyWindowK = P.Value.Index = P.Key;
                     App.FromK(P.Value.MyMainPanel.Dock.Original)?.OriginalMainWindow = P.Key;
                     P.Value.ReLink();
                 }
                 bool holdup;
+                void restore(IoWindow w) {
+                    // Trying:
+                    w.MyMainPanel.Update();
+                    // this dones't seem to be needed anymore, the window is loading properly
+                    /*w.Width = w.MyWidth;
+                    w.Height = w.MyHeight;
+                    w.Position = new(w.MyX, w.MyY);
+                    w.WindowState = w.SaveState;*/
+                }
                 do {
                     holdup = false;
                     foreach (var P in value) {
                         if (P.Value.IsVisible)
                             continue;
                         if (value.TryGetValue(P.Value.OpenedFrom, out var o)) {
-                            if (o.IsVisible)
+                            if (o.IsVisible) {
                                 P.Value.Show(o);
-                            else
+                                restore(P.Value);
+                            } else
                                 holdup = true;
                             continue;
                         }
                         P.Value.Show();
+                        restore(P.Value);
                     }
                 } while (holdup);
+                //foreach (var P in profile.Pan.LoadedPanels)
+                //    P.Value.UpdateMinSize(false, true);
             } } = [];
     }
     internal SaveFilePan Pan = new();

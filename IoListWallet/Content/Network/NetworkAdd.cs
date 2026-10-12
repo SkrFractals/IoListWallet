@@ -8,10 +8,10 @@ using System.Threading;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class NetworkAdd : IoListPanel { // <NetId>
     public NetworkAdd() : base() {
-        MakeList<Type>(new IoFilter() {
+        _ = MakeList<Type>(new IoFilter() {
             Filters = [ // Search Formats:
                 new FilterText() { Name = "Blockchain" }, // Blockchain 
                 new FilterText() { Name = "Network" } // Network 

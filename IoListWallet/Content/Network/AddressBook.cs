@@ -9,13 +9,13 @@ using static IoListWallet.Core.Static.AppSave;
 using static IoListWallet.Structs.Crypto.IoNetwork;
 using static IoListWallet.Structs.Crypto.IoNetwork.AddressBookEntry;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class AddressBook : IoListPanel {
     internal bool initAddress = true;
     internal override bool IsModal() => true;
     
     public AddressBook() : base() {
-        MakeList<AddressBookEntry>(new IoFilter() {
+        _ = MakeList<AddressBookEntry>(new IoFilter() {
             Filters = [ // Search Formats:
                 new FilterText() { Name = "AddressName" }, // Address nickname how you call it
                 new FilterText() { Name = "CustomAddress" }, // Actual address the nickname is attached to
@@ -26,24 +26,25 @@ internal class AddressBook : IoListPanel {
                     /*dRule = new(6, (byte)CompareRule.Equal),
                     Rule = [new(6, (byte)CompareRule.Equal)],
                     Max =  (ushort)Enum.GetValues(typeof(AddressBookColor)).Length,*/
-                    EnumType = typeof(ColorPalette).Name
+                    EnumType = typeof(ColorPalette).Name,
+                    Group = true
                 },
                 new FilterEnum() { // RuleDepositR 
                     Name = "RuleDepositR",
                     EnumType = typeof(AddressBookRule).Name
                 },
-                new FilterNumber() { Name = "RuleDepositL", UpperMax = 1000000, LowerMax = 1000000, dRange = new(0, 1000000), Range = [new(0, 1000000)] },
+                new FilterNumber() { Name = "RuleDepositL", Group = true, UpperMax = 1000000, LowerMax = 1000000, dRange = new(0, 1000000), Range = [new(0, 1000000)] },
                 new FilterEnum() { // RuleWithdrawR 
                     Name = "RuleWithdrawR",
                     EnumType = typeof(AddressBookRule).Name
                 },
-                new FilterNumber() { Name = "RuleWithdrawL", UpperMax = 1000000, LowerMax = 1000000, dRange = new(0, 1000000), Range = [new(0, 1000000)] }
+                new FilterNumber() { Name = "RuleWithdrawL", Group = true, UpperMax = 1000000, LowerMax = 1000000, dRange = new(0, 1000000), Range = [new(0, 1000000)] }
         ], SortIndex = 2, SortIndex2 = 0, Increasing = true, Increasing2 = true
-        }, new Gen_Buttons(2), [("T_AddAddress", L("AddAddress"))]); // 0 = Add Address
+        }, new Gen_Buttons(2), [("T_AddAddress", L("Add") + " " + L("Address"))]); // 0 = Add Address
     }
     private static string F = "Failed AddressBook.";
-    internal override IoPanel OnOpen(bool initial = false) {
-        var r = base.OnOpen(initial);
+    internal override IoPanel OnOpen() {
+        var r = base.OnOpen();
         var n = TryNetwork(MyNetwork) ?? throw new(F + "OnOpen.TryNetwork");
         if (n.AddressBook.Count <= 0 && initAddress) {
             initAddress = false;
@@ -51,7 +52,7 @@ internal class AddressBook : IoListPanel {
         }
         return r;
     }
-    internal Type? MyNetwork => Networks.TryGetValue(Key, out Type? Net) ? Net : null;
+    internal Type? MyNetwork => Networks.TryGetValue(Key, out var Net) ? Net : null;
     protected override string CustomTitle()
         => " - " + MyNetwork?.Name ?? "";
     internal override string TrueParentType => MakeK(typeof(NetworkContent), Key);
@@ -80,7 +81,7 @@ internal class AddressBook : IoListPanel {
             new AddressBookEntry(){ Index=0, Name = "C4", Address = "ab 5000-6000", Color = 4, MaxDepositValue=5000, MaxWithdrawValue=6000,RuleDeposit = AddressBookRule.Allow, RuleWithdraw = AddressBookRule.Block}
             ];*/
         MyList[0].RefreshTemplate(TryNetwork(MyNetwork)?.AddressBook.Values,
-            (address) => new Gen_Buttons.GenData(["T_SelectAddressBook", address is AddressBookEntry a ? a.Address + "\n| " + a.Name : "", "T_EditAddress", L("EditAddress")]), // Select Address
+            (address) => new Gen_Buttons.GenData(["T_SelectAddressBook", address is AddressBookEntry a ? a.Address + "\n| " + a.Name : "", "T_EditAddress", L("Edit") + " " + L("Address")]), // Select Address
             (address) => address is AddressBookEntry a ? [ // Search Data:
                 a.Name,
                 a.Address,
@@ -107,9 +108,9 @@ internal class AddressBook : IoListPanel {
             case 1:
                 // Edit Address
                 var b = e.ClickedRow as WToggleButton ?? throw new(F + "OnClickButton");
-                AddressBookEntry A = b.Button.Tag as AddressBookEntry ?? throw new(F + "Button.Tag is not an AddressBookEntry!");
+                var A = b.Button.Tag as AddressBookEntry ?? throw new(F + "Button.Tag is not an AddressBookEntry!");
                 ushort MyIndex = A.Index;
-                OpenRefreshPanel(this, typeof(AddressContent), MyIndex.ToString() + "." + Key);
+                _ = OpenRefreshPanel(this, typeof(AddressContent), MyIndex.ToString() + "." + Key);
                 break;
         }
     }
@@ -121,8 +122,8 @@ internal class AddressBook : IoListPanel {
                 while (n.AddressBook.ContainsKey(MyIndex))
                     ++MyIndex;
                 n.AddressBook[MyIndex] = new() { Index = MyIndex };
-                OpenRefreshPanel(this, typeof(AddressContent), MyIndex.ToString() + "." + Key);
-                RefreshPanel(this, ~0, true);
+                _ = OpenRefreshPanel(this, typeof(AddressContent), MyIndex.ToString() + "." + Key);
+                _ = RefreshPanel(this, ~0, true);
                 break;
         }
     }

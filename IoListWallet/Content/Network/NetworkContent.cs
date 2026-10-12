@@ -5,7 +5,7 @@ using System.IO;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class NetworkContent : IoBookPanel {
     public NetworkContent() : base() { }
 

@@ -15,6 +15,7 @@ internal abstract class NetworkCardano : IoNetwork {
     }
     internal override string GetNetwork() => (string)MyNetwork;
     internal override bool IsValidAddress(string address) {
+        return false;
         throw new System.NotImplementedException();
     }
     internal override Type WalletType() => typeof(Wallet_Cardano);

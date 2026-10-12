@@ -1,4 +1,4 @@
-﻿using IoListWallet.IoPanels.Main;
+﻿using IoListWallet.Content.Main;
 using IoListWallet.Structs.Crypto;
 using IoListWallet.Structs.Crypto.Bitcoin;
 using IoListWallet.Structs.Crypto.Cardano;
@@ -82,6 +82,13 @@ public class RotationHost : Decorator {
 }
 
 internal static class AppSave {
+    internal class SaveFileLog {
+        [Save] // Which Locale entries were shown at some point and which haven't?
+        internal Dictionary<string, Dictionary<string, bool>> LocaleShown { get; set; } = [];
+        [Save] // Which Locale entries were asked, but not found?
+        internal Dictionary<string, List<string>> LocaleNotFound { get; set; } = [];
+    }
+    internal static SaveFileLog Log = new();
     internal static void UpdateRotation() => RotationHosts?.Invoke(null, new EventArgs()); 
     internal static event EventHandler<EventArgs>? RotationHosts;
 
@@ -272,7 +279,7 @@ internal static class AppSave {
         // if already have a profile...
         if ((IsProfile(profileId, out var p) ? SavePro(p, profileId) // ...save it and try reloading it's unloaded children (also saves if they already loaded too)
             : File.Exists(pathf) ? DeserializeObject(typeof(IoProfile), File.ReadAllText(pathf)) // actually load it
-            : SavePro(new IoProfile() { InterfaceMode = DPro.InterfaceMode, Background = new Bitmap(Path.Combine("Images","background.jpg")) }, profileId) // Doesn't exist -> create it
+            : SavePro(new IoProfile() { InterfaceMode = DPro.InterfaceMode }, profileId) // Doesn't exist -> create it
         ) is IoProfile profile) {
             (SApp.Profiles[profileId] = profile).Dirty = false; // Mark synced, and link directories
             if (batch && profileId != SApp.Profile)
@@ -287,6 +294,7 @@ internal static class AppSave {
             //if (!init) // We are reloading, so instead of initializing menu, we just close everything else and go back to menu
             //    ResetToHome(profile, profile.DisplayMode ?? DisplayMode.Fullscreen); 
             SApp.Profile = profileId; // link pointers
+            profile.Background ??= new Bitmap(Path.Combine("Images", "background.jpg")); // default background
             App.SetTextShadows(profile.ShadowTexts);
             App.SetButtonShadows(profile.ShadowButtons);
             if (AppMainMenu is MainMenu m)
@@ -360,7 +368,8 @@ internal static class AppSave {
         App.StartApp(); // Initializes and opens the special MainMenu panel
         AppMainMenu.SetTitle();
         AppMainMenu.Initialize();
-        App.RefreshAll();
+        //App.RefreshAll();
+        App.RefreshSizes(false);
 
     }
     /*internal static IoProfile? LoadPassword(bool init = false) {
@@ -592,6 +601,13 @@ internal static class AppSave {
         return false;
        
     }
+    internal static void LoadLogs() {
+        string path = GetRootSaveDir();
+        Directory.CreateDirectory(path);
+        var pathf = Path.Combine(path, "log.json");
+        if (File.Exists(pathf))
+            Log = DeserializeObject(typeof(SaveFileLog), ReadFile(pathf)) as SaveFileLog ?? new();
+    }
     #endregion
 
     #region Json
@@ -664,6 +680,9 @@ internal static class AppSave {
     private static object? DeserializeValue(Type type, JsonNode? node) {
         if (node == null)
             return null;
+        if (type == typeof(Type))
+            return App.ATypes.TryGetValue(node.GetValue<string>(), out var t) ? t : null;
+        
         if (type == typeof(Color)) {
             var t = node.GetType();
             if (node is JsonObject obj) {
@@ -753,6 +772,8 @@ internal static class AppSave {
         //if (type == typeof(MainMenu)) return null;
         /*if (IsTuple(type))            
             return JsonSerializer.SerializeToNode(value, tupleOptions);*/
+        if (value is Type t)
+            return t.Name;
         if (IsSaveType(type))
             return SerializeObject(value);
         // Dictionary
@@ -979,9 +1000,16 @@ internal static class AppSave {
         }
         return GetProfile?.Win;
     }
+    internal static SaveFileLog? SaveLog() {
+        WriteJson(Log, Path.Combine(GetRootSaveDir(), "log"));
+        return Log;
+    }
     #endregion
 
     internal static void FindLocales() {
+
+        LoadLogs();
+
         var subPath = Path.Combine(AppContext.BaseDirectory, "LocalesSub");
         Directory.CreateDirectory(subPath);
         foreach (var file in Directory.GetFiles(subPath, "*.json")) {
@@ -989,6 +1017,11 @@ internal static class AppSave {
             if (JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(file)) is Dictionary<string, string> parsed) {
                 SubLocaleData[code] = parsed;
                 SubLocaleNames[code] = parsed["ThisLanguage"];
+                // tracking locale usage:
+                var s = Log.LocaleShown.ContainsKey(code) ? Log.LocaleShown[code] : (Log.LocaleShown[code] = []);
+                foreach (var i in parsed) 
+                    if (!s.ContainsKey(i.Key))
+                        s[i.Key] = false; 
             }
         }
         var localesPath = Path.Combine(AppContext.BaseDirectory, "Locales");
@@ -998,6 +1031,13 @@ internal static class AppSave {
             if (JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(file)) is Dictionary<string,string> parsed) {
                 LocaleData[code] = parsed;
                 LocaleNames[code] = parsed["ThisLanguage"];
+                // tracking locale usage:
+                var s = Log.LocaleShown.ContainsKey(code) ? Log.LocaleShown[code] : (Log.LocaleShown[code] = []);
+                foreach (var i in parsed)
+                    if (!s.ContainsKey(i.Key))
+                        s[i.Key] = false;
+                if(!Log.LocaleNotFound.ContainsKey(code))
+                    Log.LocaleNotFound[code] = [];
             }
         }
     }

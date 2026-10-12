@@ -1,20 +1,20 @@
 ﻿using IoListWallet.Content.Abstract;
 using IoListWallet.Core;
 using IoListWallet.Core.Lists;
-using IoListWallet.IoPanels.Main;
+using IoListWallet.Content.Main;
 using System;
 using System.Threading;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Profile;
+namespace IoListWallet.Content.Profile;
 internal class ProfileSelect : IoListPanel {
     //private const string F = "Failed ListProfileSelect.", T = "T_ListProfileSelect";
     public ProfileSelect() : base() => MakeList<int>(new IoFilter() {
         Filters = [ // Search Formats:
             new FilterText() { Name = "Name" } // Name 
         ], SortIndex = 0, SortIndex2 = 0, Increasing = true, Increasing2 = true
-    }, new Gen_Buttons(1), [("T_AddProfile", L("AddProfile"))], -1, 0, null, null, IsSelected);
+    }, new Gen_Buttons(1), [("T_AddProfile", L("Add") + " " + L("Profile"))], -1, 0, null, null, IsSelected);
     
     internal override string TrueParentType => MakeK(typeof(MainMenu), "");
     internal override void RefreshData(int job, CancellationToken? token) {

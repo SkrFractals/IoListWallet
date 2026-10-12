@@ -2,14 +2,14 @@
 using IoListWallet.Core;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.IoPanels.Network;
-using IoListWallet.IoPanels.Profile;
+using IoListWallet.Content.Network;
+using IoListWallet.Content.Profile;
 using System;
 using System.Threading;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Main;
+namespace IoListWallet.Content.Main;
 
 internal enum MainMenuButtons {
     ProfileSelect,
@@ -22,11 +22,11 @@ internal class MainMenu : IoListPanel {
 
     internal bool initProfile = true, initLogin = true, initNetwork = true, initWallet = true, initAccount = true;
     public MainMenu() : base() {
-
-        MakeList<MainMenuButtons>(new IoFilter() {
+        _ = MakeList<MainMenuButtons>(new IoFilter() {
             Filters = [
                 new FilterEnum() { // Blockchain 
                     Name = "ShowRows",
+                    Group = true,
                     //dRule = new(0, (byte)CompareRule.NotLess), 
                     //Rule = [new(0, (byte)CompareRule.NotLess)], 
                     Mask = ~(ulong)0,
@@ -45,7 +45,7 @@ internal class MainMenu : IoListPanel {
                 MainMenuButtons.Transactions => (GetNetworks?.Count ?? 0) <= 0,
                 _ => false,
             }, (object? o) => ((MainMenuButtons?)o ?? MainMenuButtons.ProfileSelect) switch {
-                MainMenuButtons.NetworkSelect => GetProfile == null || (Networks?.Count ?? 0) <= 0 || (GetNetwork != null && (Networks?.Count ?? 0) <= 1),
+                MainMenuButtons.NetworkSelect => GetProfile == null || (Networks?.Count ?? 0) <= 0 || GetNetwork != null && (Networks?.Count ?? 0) <= 1,
                 _ => false,
             });
         Book.Swipe.OnLeftEvent += (_, _) => ToggleFilter();
@@ -64,21 +64,21 @@ internal class MainMenu : IoListPanel {
                 string? guard() => login() ?? (n != null ? null : L("PleaseSelectNetwork"));
                 return new Gen_Buttons.GenData((MainMenuButtons?)button switch {
                     MainMenuButtons.ProfileSelect => ["T_MenuSelectProfile",
-                        L("MainMenu.ProfileSelect") + ": " + (p != null ? p.Name == "" ? L("NoName") : p.Name : L("Select")),
-                        "T_MenuEditProfile", 
-                        L(loggedIn ? "EditProfile" : "Login")],
+                        L("MainMenu.ProfileSelect") + (p != null ? p.Name == "" ? L("NoName") : p.Name : L("Select")),
+                        "T_MenuEditProfile",
+                        loggedIn ? L("Edit") + " " + L("Profile") : L("Login")],
                     MainMenuButtons.NetworkSelect => [(n == null ? "-" : "") + "T_MenuSelectNetwork",
-                        login() ?? (L("MainMenu.NetworkSelect") + ": " + (n == null ? L(p?.Networks.Count > 0 ? "Select" : "Add") : L(n.Blockchain) + " - " + L(n.GetNetwork()))),
+                        L("MainMenu.NetworkSelect") + (login() ?? (n == null ? L(p?.Networks.Count > 0 ? "Select" : "Add") : L(n.Blockchain) + " - " + L(n.GetNetwork()))),
                         "T_EditNetwork",
-                        L("EditNetwork")],
+                        L("Edit") + " " + L("Network")],
                     MainMenuButtons.WalletSelect => [(w == null ? "-" : "") + "T_MenuSelectWallet",
-                        guard() ?? (L("MainMenu.WalletSelect") + ": " + (w?.Name ?? L(n?.Wallets.Count > 0 ? "Select" : "Add"))),
+                        L("MainMenu.WalletSelect") + (guard() ?? w?.Name ?? L(n?.Wallets.Count > 0 ? "Select" : "Add")),
                     "T_EditWallet",
-                    L("EditWallet")],
+                    L("Edit") + " " + L("Wallet")],
                     MainMenuButtons.AccountSelect => [(GetAccount == null ? "-" : "") + "T_MenuSelectAccount" ,
-                        guard() ?? (L("MainMenu.AccountSelect") + ": " + (GetAccount?.Name ?? L(w?.Accounts.Count > 0 ? "Select" : "Add"))),
-                    "T_EditWallet",
-                    L("EditWallet")],
+                        L("MainMenu.AccountSelect") + (guard() ?? (w == null ? L("PleaseSelectWallet") : (GetAccount?.Name ?? L(w?.Accounts.Count > 0 ? "Select" : "Add")))),
+                    "T_EditAccount",
+                    L("Edit") + " " + L("Account")],
                     /*MainMenuButtons.OpenAccount => [
                          (GetAccount == null ? "-" : "") + "T_MenuOpenAccount",
                     L(!loggedIn ? "PleaseLogin" : (a != null)
@@ -86,8 +86,8 @@ internal class MainMenu : IoListPanel {
                             ? "PleaseSelectAccount" : "PleaseSelectNetwork"),
                     "T_EditAccount", "EditAccount"],*/
                     MainMenuButtons.Transactions => [(n == null ? "-" : "") + "T_MenuTransactions",  
-                        guard() ?? "Transactions", // Transactions Button
-                    "T_AllTransactions", L("AllTransactions")],
+                        guard() ?? L("Transaction"), // Transactions Button
+                    "T_AllTransactions",  L("All") + " " + L("Transaction")],
                     _ => ["--"]
                 });
             }, (o) => { // Filter Templates:
@@ -101,7 +101,7 @@ internal class MainMenu : IoListPanel {
     }
     protected override object? Selected(int from) => GetProfile?.Networks;
     protected override void OnClickTool(object? s, IoListBase.ClickToolEventArgs e) {
-        OpenRefreshPanel(this, typeof(Tutorial), "");
+        _ = OpenRefreshPanel(this, typeof(Tutorial), "");
     }
     protected override void OnClickRow(object? s, IoListBase.ClickRowEventArgs e) {
         var b = e.ClickedRow as WToggleButton ?? throw new("Failed ListMainMenu.OnClickButton");
@@ -130,10 +130,9 @@ internal class MainMenu : IoListPanel {
                     break;
         }
     }
-    internal override IoPanel OnOpen(bool initial = false) {
-        var r = base.OnOpen(initial);
-        if (!initial)
-            Initialize();
+    internal override IoPanel OnOpen() {
+        var r = base.OnOpen();
+        Initialize();
         return r;
     }
     internal void Initialize() {

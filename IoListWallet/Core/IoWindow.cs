@@ -9,24 +9,36 @@ namespace IoListWallet.Core;
 internal class IoWindow : Window {
     internal static void Dirty() => GetProfile?.Win.Dirty = true; // Somethign was edited in me - dirty the panel.json save file for saving
     [Save]
-    internal IoMainPanel MyMainPanel { get; set { field = value; Dirty(); } }
+    internal IoMainPanel MyMainPanel { get; set { Content = field = value; Dirty(); } }
     
     [Save] 
     internal int OpenedFrom { get; set { Owner = TryWindow(field = value); Dirty(); } } = -1;
     [Save]
-    internal double MyWidth { get; set { Width = field = value; Dirty(); } } = 120;
+    internal double MyWidth { get; set { field = value; if (Width != value) Width = value; Dirty(); } } = 120;
     [Save]
-    internal double MyHeight { get; set { Height = field = value; Dirty(); } } = 120;
+    internal double MyHeight { get; set { field = value; if (Height != value) Height = value; Dirty(); } } = 120;
     [Save]
     internal bool Snapped { get; set { field = value; Dirty(); } } = false;
     [Save]
-    internal PixelPoint MyPosition { get; set { Position = field = value; Dirty(); } }
+    internal WindowState SaveState { get; set { field = value; if (WindowState != value) WindowState = value; Dirty(); } }
+    [Save]
+    internal int MyX { get; set { field = value; if (Position.X != value) Position = new(value, Position.Y); Dirty(); } }
+    [Save]
+    internal int MyY { get; set { field = value; if (Position.Y != value) Position = new(Position.X, value); Dirty(); } }
 
     internal int Index;
     internal bool IsClosing = false, isDragging = false, isDockDragging = false;
 
     internal void ReLink() {
         MyMainPanel.DockHost.Content = MyMainPanel.Dock.Build(true, true);
+    }
+    internal void Snapshot() {
+        if (WindowState == WindowState.Normal) {
+            MyWidth = Width;
+            MyHeight = Height;
+            (MyX, MyY) = (Position.X, Position.Y);
+        }
+        SaveState = WindowState;
     }
 
     public void SetMinSize(Size n){
@@ -136,13 +148,13 @@ internal class IoWindow : Window {
         Snapped = false;
         DoNotClamp = true;
         if (WindowState == WindowState.Normal) {
-            MyPosition = Position;
+            (MyX, MyY) = (Position.X, Position.Y);
             ExtendClientAreaToDecorationsHint = false;
             WindowState = WindowState.Maximized;
         } else {
             ExtendClientAreaToDecorationsHint = GetDisplayMode == IMode.MultiWindow;
             WindowState = WindowState.Normal;
-            Position = MyPosition;
+            Position = new(MyX, MyY);
         }
         DoNotClamp = false;
         FromK(MyMainPanel.Dock.Original)?.UpdateMax();

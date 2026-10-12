@@ -4,7 +4,7 @@ using IoListWallet.Core.Lists;
 using System.Threading;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Profile;
+namespace IoListWallet.Content.Profile;
 internal class SubLocaleSelect : IoListPanel {
     public SubLocaleSelect() : base() => MakeList<string>(new IoFilter() {
         Filters = [ // Search Formats:

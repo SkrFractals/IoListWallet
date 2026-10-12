@@ -33,8 +33,11 @@ internal class IoTooltips {
         OnLongHoldStop?.Invoke(this, new EventArgs());
         startPointer = e.GetPosition(null);
         longClick = false;
+        var d = Static.AppSave.GetProfile?.ShowTooltips ?? Static.AppSave.DPro.ShowTooltips;
+        if (d == 0)
+            return;
         ulong Id = ++processClickID;
-        await Task.Delay(Static.AppSave.GetProfile?.ShowTooltips ?? Static.AppSave.DPro.ShowTooltips);
+        await Task.Delay(d);
         if (processClickID == Id) {
             longClick = true;
             OnLongHoldStart?.Invoke(this, new EventArgs());

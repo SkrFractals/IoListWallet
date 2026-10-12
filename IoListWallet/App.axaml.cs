@@ -10,7 +10,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using IoListWallet.Core;
 using IoListWallet.Core.Basic;
-using IoListWallet.IoPanels.Main;
+using IoListWallet.Content.Main;
 using IoListWallet.Structs.Crypto;
 using System;
 using System.Collections.Generic;
@@ -38,8 +38,8 @@ public partial class App : Application {
     //false;
     // Block saving any save files, so that you can test from a clean slate every time with worrying about save states
     internal const bool DisableSaving =
-        true;
-        //false;
+        //true;
+        false;
     // OpenedWindows Loading is currently broken, so this needs to be off if you want to actaully do anything other than debugging OpenedWindows.
     internal const bool DisableSavingOpenedWindows =
         //true;
@@ -169,6 +169,9 @@ public partial class App : Application {
         foreach (var t in typeof(FilterType).Assembly.GetTypes())
             if (!t.IsAbstract && typeof(FilterType).IsAssignableFrom(t))
                 ATypes[t.Name] = t;
+        foreach (var t in typeof(IoNetwork).Assembly.GetTypes())
+            if (!t.IsAbstract && typeof(IoNetwork).IsAssignableFrom(t))
+                ATypes[t.Name] = t;
         foreach (var t in typeof(IoDock).Assembly.GetTypes())
             if (!t.IsAbstract && typeof(IoDock).IsAssignableFrom(t))
                 ATypes[t.Name] = t;
@@ -212,12 +215,12 @@ public partial class App : Application {
                     ? new(screen.Bounds.Size.Width, screen.Bounds.Size.Height) : new Size(120, 120)
             : new Size(120, 120);
     }
-    internal static void RefreshSizes() {
+    internal static void RefreshSizes(bool shrink = true) {
         if (GetProfile is not IoProfile profile)
             return;
         RefreshAll();
         foreach (var o in profile.Pan.LoadedPanels)
-            o.Value.UpdateMinSize(true, true);
+            o.Value.UpdateMinSize(shrink, true);
     }
     internal static void InitApp() {
         var current = Current ?? throw new("Failed StartApp.Current");
@@ -299,12 +302,15 @@ public partial class App : Application {
                 AppRunning = false; // SingleView just Saves instead of exits
             foreach (var p in GetProfile?.Pan.LoadedPanels ?? [])
                 p.Value.Snapshot();
-            SaveApp();
-            SavePro();
-            SaveAll(); //  save all dirtied networks and wallets and transactions
-            SavePan();
+            foreach (var o in GetProfile?.Win.OpenedWindows ?? [])
+                o.Value.Snapshot();
+            SaveLog(); // debug logs
+            SaveApp(); // app psettings 
+            SavePro(); // profile settings
+            SaveAll(); // save all dirtied networks and wallets and transactions
+            SavePan(); // profile panels
             if(GetDisplayMode == IMode.MultiWindow)
-                SaveWin();
+                SaveWin(); // profile windows
             Desktop?.Shutdown();
         }
     }
@@ -333,7 +339,7 @@ public partial class App : Application {
             Register(fullkey, Panel);
             if (open && Panel.RefreshesWhenOpened() == 0) {
                 if (Panel.GetMyMainPanel() == null) {
-                    Panel.Open(parent == null ? Panel.TrueParent! : parent);
+                    Panel.Open(parent ?? Panel.TrueParent!);
                     if (parent == null && key.t != typeof(MainMenu))
                         Panel.Close();
                 }
@@ -344,7 +350,7 @@ public partial class App : Application {
            
             Panel.Open(parent);
 
-            Panel.UpdateMinSize(true);
+            Panel.UpdateMinSize(false);
         }
         if (Panel is IoBookPanel b && page > 0 && open)
             b.Book.Swipe.Page = b.Book.Swipe.PrevPage = (page, 0);
@@ -367,14 +373,31 @@ public partial class App : Application {
     #endregion
 
     #region Locale
-    internal static string L(string key) 
+    internal static string L(string key) {
+        var thisL = GetProfile?.SelectedLocale ?? "";
+        if (SubLocale.TryGetValue(key, out var subvalue)) {
+            Log.LocaleShown[GetProfile?.SelectedSubLocale ?? ""][key] = true;
+            return subvalue;
+        }
+        if (Locale.TryGetValue(key, out var value)) {
+            Log.LocaleShown[thisL][key] = true;
+            return value;
+        }
+        if (!Log.LocaleNotFound[thisL].Contains(key))
+            Log.LocaleNotFound[thisL].Add(key);
+        return (GetProfile?.DebugLocale ?? false)
+        ? "[-" + key + "-]"
+        : key;
+    }
+    // version without the debugging:
+    /*internal static string L(string key) 
         => SubLocale.TryGetValue(key, out var subvalue) 
         ? subvalue 
         : Locale.TryGetValue(key, out var value) 
         ? value 
         : (GetProfile?.DebugLocale ?? false) 
         ? "[-" + key + "-]" 
-        : key;
+        : key;*/
     internal static string GetEnumText(Enum value) {
         /*var field = value.GetType().GetField(value.ToString());
         var attr = field?.GetCustomAttributes(typeof(DescriptionAttribute), false)
@@ -428,11 +451,18 @@ public partial class App : Application {
     internal static IoPanel? RefreshPanel(IoPanel? panel, int mask, bool forceSync) => panel == null ? null : EnqueueTask((panel, mask), forceSync);
     internal static IoPanel? RefreshPanel(string? key, bool forceSync) => key == null ? null : EnqueueTask((GetPanel(key, 0, true), 1), forceSync);
     internal static IoPanel? RefreshPanel((Type type, string key)? key, bool forceSync) => key == null ? null : EnqueueTask((GetPanel((key.Value.type, key.Value.key), null, 0, true), ~0), forceSync);
-    internal static void RefreshAll() {
+    internal static bool IsOpened((Type type, string key)? key) {
+        if (key == null)
+            return false;
+        var fullkey = IoPanel.MakeK(key.Value.type, key.Value.key);
+        return (GetProfile?.Pan.LoadedPanels.TryGetValue(fullkey, out var Panel) ?? false) && Panel.IsVisible;
+    }
+    internal static void RefreshAll(bool all = true) {
         var panels = GetProfile?.Pan.LoadedPanels.Values;
         if(panels != null)
             foreach (var panel in panels)
-                RefreshPanel(panel, ~0, false);
+                if(panel.IsVisible || all)
+                    RefreshPanel(panel, ~0, false);
     }
     // run this in looped thread
     Stopwatch? deltaTime = null;

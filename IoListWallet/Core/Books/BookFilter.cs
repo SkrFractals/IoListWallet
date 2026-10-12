@@ -3,7 +3,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Media;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Lists;
-using IoListWallet.Core.Static;
 using System;
 using System.Collections.Generic;
 using static IoListWallet.App;
@@ -58,17 +57,17 @@ internal class BookFilter : IoBook {
         ulong TakeBit(ulong mask) => GetBit(mask, S);// ulong TakeBit(ulong mask) => mask & ((ulong)1 << S);
         ulong SetBit(ref ulong mask, ulong bit, int I) => mask = (mask & ~((ulong)1 << I)) + (bit << I);
 
-        void UpdateNumeric(IoNumericLeftRight? e, FilterType filter, Action<IoNumericLeftRight> lambda, ulong customDisabled = 0) {
+        void UpdateNumeric(IoNumericLeftRight? e, FilterType filter, Func<IoNumericLeftRight, bool> lambda, ulong customDisabled = 0) {
             if (e != null) {
-                lambda(e);
-                if (TakeBit(filter.Disabled) == 0 && TakeBit(filter.Disabled) == 0)
+               
+                if (lambda(e) && TakeBit(filter.Disabled) == 0)
                     OnUpdate?.Invoke(this, new EventArgs());
             }
         }
-        void UpdateText(IoTextBox? e, FilterType filter, Action<IoTextBox> lambda) {
+        void UpdateText(IoTextBox? e, FilterType filter, Func<IoTextBox, bool> lambda) {
             if (e != null && e.Text != null) {
-                lambda(e);
-                if (TakeBit(filter.Disabled) == 0)
+               
+                if (lambda(e) &&  TakeBit(filter.Disabled) == 0)
                     OnUpdate?.Invoke(this, new EventArgs());
             }
         }
@@ -79,22 +78,21 @@ internal class BookFilter : IoBook {
                     OnUpdate?.Invoke(this, new EventArgs());
             }
         }*/
-        void UpdateDate(IoDatePicker? e, FilterType filter, Action<DateTime> lambda) {
+        void UpdateDate(IoDatePicker? e, FilterType filter, Func<DateTime, bool> lambda) {
             if (e != null && e.SelectedDate != null) {
-                lambda(e.SelectedDate == null ? DateTime.Now : e.SelectedDate.Value.DateTime);
-                if (TakeBit(filter.Disabled) == 0)
+                if (lambda(e.SelectedDate == null ? DateTime.Now : e.SelectedDate.Value.DateTime) && TakeBit(filter.Disabled) == 0)
                     OnUpdate?.Invoke(this, new EventArgs());
             }
         }
         var Page = e.Page.X;
         string PageS = Page.ToString();
 
-        if ((Page > 0 && Page <= Filters.Size) || onlyone) {
+        if (Page > 0 && Page <= Filters.Size || onlyone) {
 
             // Remove Search Button:
             var removeSearch = MakeButton(s + "removeSearch." + PageS, Owner, "T_RemoveSearch", L("Remove"), DeleteSearch, false, FontWeight.Bold, L("AreYouSure"));
             //removeSearch.Button.IsEnabled = Filters.Size > 1;
-            if (Filters.Size > 1 || (e.Simulated && MaxSearch > 1))
+            if (Filters.Size > 1 || e.Simulated && MaxSearch > 1)
                 MakeRow(e, "_RemoveSearch", "RemoveSearch", [(removeSearch.Button, 1)]);
 
             foreach (var filter in Filters.Filters) {
@@ -117,25 +115,37 @@ internal class BookFilter : IoBook {
                 if (filter is FilterText ft) {
 
                     // Regexp
-                    void set(TextBox s) { 
-                        ft.Regexp[S] = ((TextBox?)s)?.Text ?? "";
+                    bool set(TextBox s) {
+                        var t = ((TextBox?)s)?.Text ?? "";
+                        if (ft.Regexp[S] == t)
+                            return false;
+                        ft.Regexp[S] = t;
                         IoPanel.Dirty();
+                        return true;
                     }
                     void update(object? s, EventArgs _)
                         => UpdateText((IoTextBox?)s, filter, set);
-                    var regexp = MakeTextBox(s + "regexp." + PageS + "." + name, Owner, "T_Regexp", ft.Regexp[S], "Regexp", update, update);
+                    var regexp = MakeTextBox(s + "regexp." + PageS + "." + name, Owner, "T_Regexp", ft.Regexp[S], "Regexp", update);
                     MakeRow(e, name, name, [(EnableF.Button, 1), (regexp.Border, 2)]);
 
                 } else if (filter is FilterNumber fn) {
 
                     // Number Min-Max
-                    void setMin(IoNumericLeftRight s) { 
-                        fn.Range[S] = new(s.Value, fn.Range[S].Max);
+                    bool setMin(IoNumericLeftRight s) {
+                        var t = s.Value;
+                        if (fn.Range[S].Min == t)
+                            return false;
+                        fn.Range[S] = new(t, fn.Range[S].Max);
                         IoPanel.Dirty();
+                        return true;
                     }
-                    void setMax(IoNumericLeftRight s) { 
-                        fn.Range[S] = new(fn.Range[S].Min, s.Value);
+                    bool setMax(IoNumericLeftRight s) {
+                        var t = s.Value;
+                        if (fn.Range[S].Max == t)
+                            return false;
+                        fn.Range[S] = new(fn.Range[S].Min, t);
                         IoPanel.Dirty();
+                        return true;
                     }
                     void updateMin(object? s, EventArgs _)
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMin);
@@ -176,13 +186,19 @@ internal class BookFilter : IoBook {
                 } else if (filter is FilterDate fd) {
 
                     // Date Min-Max
-                    void setMin(DateTime t) {
+                    bool setMin(DateTime t) {
+                        if (fd.Range[S].Min == t)
+                            return false;
                         fd.Range[S] = new(t, fd.Range[S].Max);
                         IoPanel.Dirty();
+                        return true;
                     }
-                    void setMax(DateTime t) { 
+                    bool setMax(DateTime t) {
+                        if (fd.Range[S].Max == t)
+                            return false;
                         fd.Range[S] = new(fd.Range[S].Min, t);
                         IoPanel.Dirty();
+                        return true;
                     }
                     void updateMin(object? s, DatePickerSelectedValueChangedEventArgs _)
                         => UpdateDate((IoDatePicker?)s, filter, setMin);
@@ -194,11 +210,15 @@ internal class BookFilter : IoBook {
                     MakeRow(e, name, name, [(EnableF.Button, 3), (min.View, 2), (dash.View, 1), (max.View, 2)]);
 
                 } else if (filter is FilterToken fa) {
-                   
+
                     // Token Min-Max
-                    void set(IoTextBox s) { 
-                        fa.Cond[S] = new(s?.Text ?? "", fa.Cond[S].Min, fa.Cond[S].Max);
+                    bool set(IoTextBox s) {
+                        var t = s?.Text ?? "";
+                        if (fa.Cond[S].Ticker == t)
+                            return false;
+                        fa.Cond[S] = new(t, fa.Cond[S].Min, fa.Cond[S].Max);
                         IoPanel.Dirty();
+                        return true;
                     }
                     void update(object? s, EventArgs _)
                         => UpdateText((IoTextBox?)s, filter, set);
@@ -212,13 +232,21 @@ internal class BookFilter : IoBook {
                         OnUpdate?.Invoke(this, new EventArgs());
                         IoPanel.Dirty();
                     }
-                    void setMin(IoNumericLeftRight s) { 
-                        fa.Cond[S] = new(fa.Cond[S].Ticker, s.Value, fa.Cond[S].Max);
+                    bool setMin(IoNumericLeftRight s) {
+                        var t = s.Value;
+                        if (fa.Cond[S].Min == t)
+                            return false;
+                        fa.Cond[S] = new(fa.Cond[S].Ticker, t, fa.Cond[S].Max);
                         IoPanel.Dirty();
+                        return true;
                     }
-                    void setMax(IoNumericLeftRight s) {
-                        fa.Cond[S] = new(fa.Cond[S].Ticker, fa.Cond[S].Min, s.Value);
+                    bool setMax(IoNumericLeftRight s) {
+                        var t = s.Value;
+                        if (fa.Cond[S].Max == t)
+                            return false;
+                        fa.Cond[S] = new(fa.Cond[S].Ticker, fa.Cond[S].Min, t);
                         IoPanel.Dirty();
+                        return true;
                     }
                     void updateMin(object? s, EventArgs _)
                         => UpdateNumeric((IoNumericLeftRight?)s, filter, setMin, fa.DisabledValues);
@@ -289,10 +317,12 @@ internal class BookFilter : IoBook {
             MakeRow(e, "_PageSize", "PageSize", [(pageSize, 1)]);
 
         }
-        Results = MakeTextBlock(s + "results." + PageS, Owner, "T_Results", ResultsText);
-        MakeRow(e, "_Results", "Results", [(Results.View, 1)]);
+        var results = MakeTextBlock(s + "results." + PageS, Owner, "T_Results", ResultsText);
+        if (!e.Simulated)
+            Results = results;
+        MakeRow(e, "_Results", "Results", [(results.View, 1)]);
     }
-    private ushort GetMaxSearch() => Math.Min(MaxSearch, (GetProfile?.MaxSearchTabs ?? DPro.MaxSearchTabs));
+    private ushort GetMaxSearch() => Math.Min(MaxSearch, GetProfile?.MaxSearchTabs ?? DPro.MaxSearchTabs);
     internal void Restore(IoFilter? newFilters) {
         if (newFilters == null)
             return;
@@ -312,7 +342,7 @@ internal class BookFilter : IoBook {
         PageNames[0] = "Sort";
         for (int i = PageNames.Length - 1; 0 < --i; PageNames[i] = "Search") ;
         if (more) 
-            PageNames[PageNames.Length-1] = "AddSearch";
+            PageNames[PageNames.Length - 1] = "AddSearch";
     }
     protected virtual void BeforeTabRefresh(object? sender, EventArgs e) {
         //base.BeforeTabRefresh(sender, e);

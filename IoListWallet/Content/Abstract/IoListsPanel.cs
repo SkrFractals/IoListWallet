@@ -142,11 +142,13 @@ internal abstract class IoListsPanel : IoBookPanel {
     protected virtual bool CloseOnDoubleClick(int fromList) => true;
 
     internal override void Refresh(int job) {
+        // TEST: swapped the order to try get base's Titlebar+Updatesize to the end
         base.Refresh(job);
+       
         foreach (var item in MyList) 
             if(((1 << item.MyIndex) & job) > 0)
                 item.Refresh();
-        
+        //base.Refresh(job);
         //MyContent.Content ??= MyList;
         //Snapshot(); // TODO only if autosaving
     }

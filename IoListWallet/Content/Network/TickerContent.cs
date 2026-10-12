@@ -8,7 +8,7 @@ using System;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Network;
+namespace IoListWallet.Content.Network;
 internal class TickerContent : IoBookPanel {
     internal override bool IsModal() => true;
     public TickerContent() : base() { }
@@ -69,15 +69,15 @@ internal class TickerContent : IoBookPanel {
                         clickRemoveAddress, false, FontWeight.Bold, L("AreYouSure"));
 
                 // Id
-                void changeId(object? s, EventArgs e) {
-                    //bool WasValid = network.TickerBook[MyIndex].IsValid;
-                    network.TickerBook[MyIndex].Id = ((TextBox?)s)?.Text ?? "";
-                    //validNameBlock.Text.Text = GetIsValid();
-                    //SaveNet();
-                    //if (WasValid || network.TickerBook[MyIndex].IsValid) // invalid to invalid should not do anything
-                    RefreshAll(); // only to update matches elsewhere
-                    //else RefreshParent();
-                }
+                void changeId(object? s, EventArgs e) => network.TickerBook[MyIndex].Id = ((TextBox?)s)?.Text ?? "";
+				//bool WasValid = network.TickerBook[MyIndex].IsValid;
+				//network.TickerBook[MyIndex].Id = ((TextBox?)s)?.Text ?? "";
+				//validNameBlock.Text.Text = GetIsValid();
+				//SaveNet();
+				//if (WasValid || network.TickerBook[MyIndex].IsValid) // invalid to invalid should not do anything
+				//RefreshAll(); // only to update matches elsewhere
+				//else RefreshParent();
+		        //}
                 var idBox = MakeTextBox(s + "idBox", this, T + "Id",
                     network.TickerBook[MyIndex].Id, "", changeId);
 
@@ -85,14 +85,16 @@ internal class TickerContent : IoBookPanel {
                 void changeUnit(object? s, EventArgs e) {
                     network.TickerBook[MyIndex].Unit = ((TextBox?)s)?.Text ?? "";
                     //SaveNet();
-                    RefreshAll();
+                    RefreshAll(); // only to update matches elsewhere
                 }
                 var unitBox = MakeTextBox(s + "unitBox", this, T + "Unit",
                     network.TickerBook[MyIndex].Unit, "", changeUnit);
                 unitBox.Text.Foreground = PaletteColors[network.TickerBook[MyIndex].Color];
 
-                void changeDecimals(object? s, EventArgs e)
-                   => network.TickerBook[MyIndex].Decimals = (byte)(((IoNumericLeftRight?)s)?.Value ?? 0);
+                void changeDecimals(object? s, EventArgs e) {
+                    network.TickerBook[MyIndex].Decimals = (byte)(((IoNumericLeftRight?)s)?.Value ?? 0);
+                    RefreshAll(); // only to update matches elsewhere
+                }
                 var selectDecimals = MakeNumeric(s + "selectDecimals", this, T + "SelectDecimals",
                     network.TickerBook[MyIndex].Decimals, 0, 19, 1, 10, "SelectDecimals", L("SelectDecimals"), "", changeDecimals);
 
@@ -111,7 +113,7 @@ internal class TickerContent : IoBookPanel {
                 void changeDescription(object? s, EventArgs e) {
                     network.TickerBook[MyIndex].Description = ((TextBox?)s)?.Text ?? "";
                     //SaveNet();
-                    RefreshAll();
+                    RefreshParent();
                 }
                 var descriptionBox = MakeTextBox(s + "descriptionBox", this, T + "Description",
                     network.TickerBook[MyIndex].Description, "", changeDescription);

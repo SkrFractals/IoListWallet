@@ -41,18 +41,20 @@ internal abstract class IoBookPanel : IoPanel {
         return MinSize;
     }
     internal override void Refresh(int job) {
+        // TEST: swapped the order to try get base's Titlebar+Updatesize to the end
         base.Refresh(job);
         Book.Refresh();
+        //base.Refresh(job);
     }
     protected virtual void FillPage(object? sender, IoBook.FillPageEventArgs e) { /*UpdateWindow();*/ }
     protected virtual void OnBookClose(object? sender, EventArgs e) {
         //Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
         Close();
     }
-    internal override IoPanel OnOpen(bool initial = false) {
+    //internal override IoPanel OnOpen() {
         //Book.Swipe.Page = Book.Swipe.PrevPage = (0, 0);
-        return base.OnOpen(initial);
-    }
+    //    return base.OnOpen();
+    //}
     protected override string CustomTitle() {
         var e = App.L(GetPageNames()[Book.Swipe.Page.X]);
         return e == "" ? base.CustomTitle() : base.CustomTitle() + "-" + e;

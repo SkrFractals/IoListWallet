@@ -8,7 +8,6 @@ using System.Globalization;
 
 namespace IoListWallet.Core.Basic;
 
-// it is now crashing in render that i lack the precached fonts even though _N > 0. There must be some mismatch in the order the various stuff is set up that the UpdateTexts fails on condition checks before those conditions got ok.
 internal abstract class IoTextBlockBase : Control {
 
     protected abstract FontFamily GetFontFamily();
@@ -25,10 +24,14 @@ internal abstract class IoTextBlockBase : Control {
     }
 
     // Properties:
-    internal double PaddingMultiplier { get; set { if (field != (field = value)) InvalidateText(); } } = 1;
-    internal FontWeight FontWeight { get; set { if (field != (field = value)) { InvalidateText(); InvalidateMeasure(); } } } = FontWeight.Normal;
-    internal TextAlignment TextAlignment { get; set { if (field != (field = value)) InvalidateText(); } } = TextAlignment.Center;
-    internal string Text { get; set { if (field != (field = value)) InvalidateText(); } } = ""; // maybe a binding would be nice?
+    internal double PaddingMultiplier { get; set { 
+            if (field != (field = value)) InvalidateText(); } } = 1;
+    internal FontWeight FontWeight { get; set { 
+            if (field != (field = value)) { InvalidateText(); InvalidateMeasure(); } } } = FontWeight.Normal;
+    internal TextAlignment TextAlignment { get; set { 
+            if (field != (field = value)) InvalidateText(); } } = TextAlignment.Center;
+    internal string Text { get; set { 
+            if (field != (field = value)) InvalidateText(); } } = ""; // maybe a binding would be nice?
     internal IoTooltips Tooltip;
 
     // Styled Properties:
@@ -44,18 +47,6 @@ internal abstract class IoTextBlockBase : Control {
         get => GetValue(ShadowQualityProperty);
         set => SetValue(ShadowQualityProperty, value);
     }
-    /*public static readonly StyledProperty<double> FontSizeProperty
-       = AvaloniaProperty.Register<IoTextBlockBase, double>(nameof(FontSize), AppSave.DPro.ControlFontSize);
-    public double FontSize {
-        get => GetValue(FontSizeProperty);
-        set => SetValue(FontSizeProperty, value);
-    }
-    public static readonly StyledProperty<FontFamily> FontFamilyProperty
-        = AvaloniaProperty.Register<IoTextBlockBase, FontFamily>(nameof(FontFamily), AppSave.DPro.ControlFont);
-    public FontFamily FontFamily {
-        get => GetValue(FontFamilyProperty);
-        set => SetValue(FontFamilyProperty, value);
-    }*/
 
     // Cache:
     Point[][] trans = new Point[3][];
@@ -120,7 +111,7 @@ internal abstract class IoTextBlockBase : Control {
     }
     protected override Size ArrangeOverride(Size finalSize) {
 
-        if (AppSave.GetProfile is not IoProfile profile || ShadowQuality < 0) {
+        if (AppSave.GetProfile == null || ShadowQuality < 0) {
             _N = 0;
             return finalSize;
         }

@@ -8,14 +8,14 @@ using Avalonia.Platform.Storage;
 using IoListWallet.Content.Abstract;
 using IoListWallet.Core.Basic;
 using IoListWallet.Core.Books;
-using IoListWallet.IoPanels.Main;
+using IoListWallet.Content.Main;
 using IoListWallet.Structs.Crypto;
 using System;
 using System.IO;
 using static IoListWallet.App;
 using static IoListWallet.Core.Static.AppSave;
 
-namespace IoListWallet.IoPanels.Profile;
+namespace IoListWallet.Content.Profile;
 internal class ProfileContent : IoBookPanel {
     bool asyncing = false;
     protected enum Shadows : byte {
@@ -27,11 +27,12 @@ internal class ProfileContent : IoBookPanel {
     protected enum TabProfilePage : byte {
         TabProfileProfile,
         TabProfileInterface,
+        TabProfileCustom,
         TabProfilePerformance,
         TabProfileDebug
     }
     protected override string[] GetPageNames() 
-        => ["TabProfileProfile", "TabProfileInterface", "TabProfilePerformance", "TabProfileDebug"];
+        => ["TabProfileProfile", "TabProfileInterface", "TabProfileCustom", "TabProfilePerformance", "TabProfileDebug"];
     private IoTextBox? passwordText = null, newPasswordText = null;
     private IoTextBlockBase? changeButton = null;
     private int newPassCase = 0;
@@ -217,9 +218,10 @@ internal class ProfileContent : IoBookPanel {
                 }
 
                 // Locale
+                string getLocaleBoxText() => LocaleNames[profile.SelectedLocale];
                 void clickLocaleBox(object? s, EventArgs e)
                     => OpenRefreshPanel(this, typeof(LocaleSelect));
-                var localeBox = MakeButton(s + "localeBox", this, T + "Locale", LocaleNames[profile.SelectedLocale], clickLocaleBox);
+                var localeBox = MakeButton(s + "localeBox", this, T + "Locale", getLocaleBoxText(), clickLocaleBox);
                 var verbLabel = MakeTextBlock(s + "verbLabel", this, T + "Verbosity", L("Verbosity"));
 
                 // SubLocale
@@ -282,7 +284,6 @@ internal class ProfileContent : IoBookPanel {
                 var decimalBox = MakeComboBox(s + "decimalBox", this, T + "DecimalBox", decimals, profile.Decimal, format, setDecimal);
                 var thousandBox = MakeComboBox(s + "thousandBox", this, T + "ThousandBox", thousands, profile.Thousand, format, setThousand);
                
-
                 // Display Mode
                 void clickDisplayMode(object? s, EventArgs e)
                     => profile.InterfaceMode = (IMode?)((IoComboBox?)s)?.SelectedItem ?? DPro.InterfaceMode;
@@ -290,6 +291,63 @@ internal class ProfileContent : IoBookPanel {
                     Enum.GetValues<IMode>(), profile.InterfaceMode ?? IMode.Fullscreen,
                     new FuncDataTemplate<IMode>((mode, _)
                         => new IoTextBlockControl { Text = GetEnumText(mode) }, false), clickDisplayMode);
+
+                // Control Font
+                void clickControlFontBox(object? s, EventArgs e)
+                    => OpenRefreshPanel(this, typeof(FontControlSelect));
+                var controlFontBox = MakeButton(s + "controlFontBox", this, T + "ControlFont",
+                    profile.ControlFont.ToString(), clickControlFontBox);
+                void clickControlFontSize(object? s, EventArgs e)
+                    => profile.ControlFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.ControlFontSize;
+                var controlFontSize = MakeNumeric(s + "controlFontSize", this, T + "ControlFontSize",
+                    (ulong)profile.ControlFontSize, 6, 120, 1, 1, "Size", "", "", clickControlFontSize);
+
+                // Info Font
+                void clickInfoFontBox(object? s, EventArgs e)
+                    => OpenRefreshPanel(this, typeof(FontInfoSelect));
+                var infoFontBox = MakeButton(s + "infoFontBox", this, T + "InfoFont",
+                    profile.InfoFont.ToString(), clickInfoFontBox);
+                void clickInfoFontSize(object? s, EventArgs e)
+                    => profile.InfoFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.InfoFontSize;
+                var infoFontSize = MakeNumeric(s + "infoFontSize", this, T + "InfoFontSize",
+                    (ulong)profile.InfoFontSize, 6, 120, 1, 1, "Size", "", "", clickInfoFontSize);
+
+                // Reset Settings
+                void clickResetInt(object? s, EventArgs e) {
+                    dateFormat.Combo.Text = DPro.DateFormat;
+                    // Reset Fonts
+                    controlFontBox.Text.Text = (profile.ControlFont = DPro.ControlFont).ToString();
+                    infoFontBox.Text.Text = (profile.InfoFont = DPro.InfoFont).ToString();
+                    controlFontSize.Value = (ulong)DPro.ControlFontSize;
+                    infoFontSize.Value = (ulong)DPro.InfoFontSize;
+                    // Reset Language
+                    profile.SelectedLocale = DPro.SelectedLocale;
+                    localeBox.Text.Text = getLocaleBoxText();
+                    RefreshPanel((typeof(LocaleSelect), ""), true);
+                    // Reset Display
+                    displayBox.Combo.SelectedIndex = (int)(DPro.InterfaceMode ?? IMode.Fullscreen);
+                }
+                var resetIntButton = MakeButton(s + "resetIntButton", this, T + "Reset", "Reset", clickResetInt);
+
+                Book.MakeRow(e, k(), "ResetToDefault", [(resetIntButton.Button, 1)]);
+                Book.MakeRow(e, k(), "Locale", [(localeBox.Button, 1), (verbLabel.View, 1), (verbBox.Button, 1)]);
+                Book.MakeRow(e, k(), "DateFormat", [(dateFormat.View, 1)]);
+                Book.MakeRow(e, k(), "NumberFormat", [(numberText.View, 1), (thousanthBox.View, 1), (decimalBox.View, 1), (thousandBox.View,1)]);
+
+                // Only Desktop lifetime can choose window modes
+                Book.MakeRow(e, k(), "DisplayMode", [(displayBox.View, 1)], null, Desktop != null);
+                
+                Book.MakeRow(e, k(), "ControlFont", [(controlFontBox.Button, 1), (controlFontSize, 2)]);
+                Book.MakeRow(e, k(), "InfoFont", [(infoFontBox.Button, 1), (infoFontSize, 2)]);
+                break;
+            #endregion
+
+            #region Custom
+            case TabProfilePage.TabProfileCustom:
+                if (!loggedIn) {
+                    PleaseLogin(e, s);
+                    break;
+                }
 
                 // Display Rotation
                 void clickDisplayRotation(object? s, EventArgs e)
@@ -323,7 +381,7 @@ internal class ProfileContent : IoBookPanel {
                     => profile.BackgroundOpacity = ((IoNumericLeftRight?)s)?.Value ?? DPro.BackgroundOpacity;
                 var backOpacity = MakeNumeric(s + "backOpacity", this, T + "BackOpacity",
                     profile.BackgroundOpacity, 0, 100, 1, 10, "BackOpacity", L("BackOpacity"), "", backOpacityChange);
-                void changeBackStretch(object? s, EventArgs e) 
+                void changeBackStretch(object? s, EventArgs e)
                     => profile.BackgroundStretch = (Stretch?)((IoComboBox?)s)?.SelectedItem ?? DPro.BackgroundStretch;
                 var backStretch = MakeComboBox(s + "backStretch", this, T + "BackStretch",
                     Enum.GetValues<Stretch>(), profile.BackgroundStretch,
@@ -360,7 +418,7 @@ internal class ProfileContent : IoBookPanel {
                     profile.ShowTooltips = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.ShowTooltips;
                     //var C = Current ?? throw new("Failed Set ShowTooltips");
                     RefreshAll();
-                    SApp.Dirty = true;;
+                    SApp.Dirty = true; ;
                 }
                 var showTooltips
                     = MakeNumeric(s + "showTooltips", this, T + "ShowTooltips", profile.ShowTooltips,
@@ -392,35 +450,9 @@ internal class ProfileContent : IoBookPanel {
                 var unMaskSpeed = MakeNumeric(s + "unMaskSpeed", this, T + "UnMaskSpeed",
                     profile.UnMaskSpeed, 1, 1000000, 1, 1, "Speed", "UnMaskSpeed", "x", changeUnMaskSpeed);
 
-                // Control Font
-                void clickControlFontBox(object? s, EventArgs e)
-                    => OpenRefreshPanel(this, typeof(FontControlSelect));
-                var controlFontBox = MakeButton(s + "controlFontBox", this, T + "ControlFont",
-                    profile.ControlFont.ToString(), clickControlFontBox);
-                void clickControlFontSize(object? s, EventArgs e)
-                    => profile.ControlFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.ControlFontSize;
-                var controlFontSize = MakeNumeric(s + "controlFontSize", this, T + "ControlFontSize",
-                    (ulong)profile.ControlFontSize, 6, 120, 1, 1, "Size", "", "", clickControlFontSize);
-
-                // Info Font
-                void clickInfoFontBox(object? s, EventArgs e)
-                    => OpenRefreshPanel(this, typeof(FontInfoSelect));
-                var infoFontBox = MakeButton(s + "infoFontBox", this, T + "InfoFont",
-                    profile.InfoFont.ToString(), clickInfoFontBox);
-                void clickInfoFontSize(object? s, EventArgs e)
-                    => profile.InfoFontSize = ((IoNumericLeftRight?)s)?.Value ?? DPro.InfoFontSize;
-                var infoFontSize = MakeNumeric(s + "infoFontSize", this, T + "InfoFontSize",
-                    (ulong)profile.InfoFontSize, 6, 120, 1, 1, "Size", "", "", clickInfoFontSize);
-
                 // Reset Settings
-                void clickResetInt(object? s, EventArgs e) {
-                    dateFormat.Combo.Text = DPro.DateFormat;
+                void clickResetCus(object? s, EventArgs e) {
                     showTooltips.Value = DPro.ShowTooltips;
-                    // Reset Fonts
-                    controlFontBox.Text.Text = (profile.ControlFont = DPro.ControlFont).ToString();
-                    infoFontBox.Text.Text = (profile.InfoFont = DPro.InfoFont).ToString();
-                    controlFontSize.Value = (ulong)DPro.ControlFontSize;
-                    infoFontSize.Value = (ulong)DPro.InfoFontSize;
                     swipeTime.Value = (ulong)DPro.SwipeTime;
                     maskOpacity.Value = DPro.MaskOpacity;
                     unMaskTime.Value = DPro.UnMaskTime;
@@ -433,37 +465,23 @@ internal class ProfileContent : IoBookPanel {
                     backStretch.Combo.SelectedItem = DPro.BackgroundStretch;
                     backOpacity.Value = DPro.BackgroundOpacity;
                     titleColor.Button.isColor = profile.TitleColor = DPro.TitleColor;
-                    // Reset Language
-                    profile.SelectedLocale = DPro.SelectedLocale;
-                    RefreshPanel((typeof(LocaleSelect), ""), true);
-                    // Reset Display
                     displayRotBox.Combo.SelectedIndex = DPro.DisplayRotation;
-                    displayBox.Combo.SelectedIndex = (int)(DPro.InterfaceMode ?? IMode.Fullscreen);
                 }
-                var resetIntButton = MakeButton(s + "resetIntButton", this, T + "Reset", "Reset", clickResetInt);
+                var resetCusButton = MakeButton(s + "resetCusButton", this, T + "Reset", "Reset", clickResetCus);
 
-                Book.MakeRow(e, k(), "ResetToDefault", [(resetIntButton.Button, 1)]);
-                Book.MakeRow(e, k(), "Locale", [(localeBox.Button, 1), (verbLabel.View, 1), (verbBox.Button, 1)]);
-                Book.MakeRow(e, k(), "DateFormat", [(dateFormat.View, 1)]);
-                Book.MakeRow(e, k(), "NumberFormat", [(numberText.View, 1), (thousanthBox.View, 1), (decimalBox.View, 1), (thousandBox.View,1)]);
-
-                // Only Desktop lifetime can choose window modes
-                Book.MakeRow(e, k(), "DisplayMode", [(displayBox.View, 1)], null, Desktop != null);
-                
+                Book.MakeRow(e, k(), "ResetToDefault", [(resetCusButton.Button, 1)]);
                 Book.MakeRow(e, k(), "DisplayRotation", [(displayRotBox.View, 1)]);
                 Book.MakeRow(e, k(), "Background", [(backButton.Button, 1), (backOpacity, 1), (backStretch.View, 2)]);
                 Book.MakeRow(e, k(), "TitleColor", [(titleUnlock.Button, 2), (titleColor.Button, 1)]);
                 Book.MakeRow(e, k(), "Toolbar", [(titleText.Button, 2), (pins.Button, 1), (homes.Button, 1)]);
                 Book.MakeRow(e, k(), "ShowTooltips", [(showTooltips, 1)]);
-                
+
                 // fullscreen doesn't mask
                 bool show = profile.InterfaceMode != IMode.Fullscreen || e.Simulated;
                 Book.MakeRow(e, k(), "MaskOpacity", [(maskOpacity, 1)], null, show);
                 Book.MakeRow(e, k(), "UnMaskTime", [(unMaskTime, 2), (unMaskSpeed, 3)], null, show);
-                
+
                 Book.MakeRow(e, k(), "SwipeTime", [(swipeTime, 2), (swipeSensitivity, 3)]);
-                Book.MakeRow(e, k(), "ControlFont", [(controlFontBox.Button, 1), (controlFontSize, 2)]);
-                Book.MakeRow(e, k(), "InfoFont", [(infoFontBox.Button, 1), (infoFontSize, 2)]);
                 break;
             #endregion
 
@@ -488,16 +506,12 @@ internal class ProfileContent : IoBookPanel {
                    = MakeComboBox(s + "shadowButtons", this, T + "ShadowButtons", Enum.GetValues<Shadows>(), (Shadows)profile.ShadowButtons, st, selectShadowButtons);
 
                 // Max Tasks
-                void clickMaxTasks(object? s, EventArgs e) {
-                    profile.MaxTasks = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.MaxTasks;
-                }
+                void clickMaxTasks(object? s, EventArgs e) => profile.MaxTasks = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.MaxTasks;
                 var maxTasks = MakeNumeric(s + "maxTasks", this, T + "MaxTasks",
                     profile.MaxTasks, 1, MaxTasks, 1, 1, "MaxTasks", "", " / " + MaxTasks.ToString(), clickMaxTasks);
 
                 // Max Search Tabs
-                void clickMaxSearchTabs(object? s, EventArgs e) {
-                    profile.MaxSearchTabs = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.MaxSearchTabs;
-                }
+                void clickMaxSearchTabs(object? s, EventArgs e) => profile.MaxSearchTabs = (ushort?)((IoNumericLeftRight?)s)?.Value ?? DPro.MaxSearchTabs;
                 var maxSearchTabs = MakeNumeric(s + "maxSearchTabs", this, T + "MaxSearchTabs",
                     profile.MaxSearchTabs, 1, 64, 1, 1, "MaxSearchTabs", "", " / " + 64.ToString(), clickMaxSearchTabs);
 
@@ -509,46 +523,34 @@ internal class ProfileContent : IoBookPanel {
                     new FuncDataTemplate<SortAlgo>((mode, _)
                         => new TextBlock { Text = GetEnumText(mode) }, false), setSortAlgo);
                
-                void clickDefaultToSingle(object? s, EventArgs e) {
-                    profile.DefaultToSingle = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.DefaultToSingle);
-                }
+                void clickDefaultToSingle(object? s, EventArgs e) => profile.DefaultToSingle = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.DefaultToSingle);
                 var defaultToSingle
                     = MakeNumeric(s + "defaultToSingle", this, T + "DefaultToSingle", profile.DefaultToSingle,
                         9, 20, 1, 1, "Items", "", "", clickDefaultToSingle);
 
                 // Sort properties:
-                void changePbiSplitChildren(object? s, EventArgs e) {
-                    profile.SplitChildren = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.SplitChildren);
-                }
+                void changePbiSplitChildren(object? s, EventArgs e) => profile.SplitChildren = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.SplitChildren);
                 var pbiSplitChilren
                     = MakeNumeric(s + "pbiSplitChilren", this, T + "SplitChildren", profile.SplitChildren,
                         1, 8, 1, 1, "PowerOf2", "", "", changePbiSplitChildren);
                 
-                void changePbiMinMaxBucketSize(object? s, EventArgs e) {
-                    profile.MinMaxBucketSize = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.MinMaxBucketSize);
-                }
+                void changePbiMinMaxBucketSize(object? s, EventArgs e) => profile.MinMaxBucketSize = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.MinMaxBucketSize);
                 var pbiMinMaxBucketSize
                     = MakeNumeric(s + "pbiMinMaxBucketSize", this, T + "MinMaxBucketSize", profile.MinMaxBucketSize,
                         7, 12, 1, 1, "PowerOf2", "", "", changePbiMinMaxBucketSize);
                 
-                void changePbiDistributionTiers(object? s, EventArgs e) {
-                    profile.DistributionTiers = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.DistributionTiers);
-                }
+                void changePbiDistributionTiers(object? s, EventArgs e) => profile.DistributionTiers = (ushort)(((IoNumericLeftRight?)s)?.Value ?? DPro.DistributionTiers);
                 var pbiDistributionTiers
                     = MakeNumeric(s + "pbiDistributionTiers", this, T + "DistributionTiers", profile.DistributionTiers,
                         1, 5, 1, 1, "PowerOf2", "", "", changePbiDistributionTiers);
                 
-                void clickPimSpin(object? s, EventArgs e) {
-                    profile.MergeSpin = (ushort)(((IoNumericLeftRight?)s)?.Value 
+                void clickPimSpin(object? s, EventArgs e) => profile.MergeSpin = (ushort)(((IoNumericLeftRight?)s)?.Value 
                         ?? DPro.MergeSpin);
-                }
                 var pimSpin = MakeNumeric(s + "pimSpin", this, T + "SpinInstructions", profile.MergeSpin,
                         5, 9, 1, 4, "Instructions", "", "", clickPimSpin);
                 
-                void clickPimVolatile(object? s, EventArgs e) {
-                    profile.MergeVolatileBuffer = (ushort)(((IoNumericLeftRight?)s)?.Value 
+                void clickPimVolatile(object? s, EventArgs e) => profile.MergeVolatileBuffer = (ushort)(((IoNumericLeftRight?)s)?.Value 
                         ?? DPro.MergeVolatileBuffer);
-                }
                 var pimVolatile = MakeNumeric(s + "pimVolatile", this, T + "VolatileBuffer", profile.MergeVolatileBuffer,
                         4, 7, 1, 10, "PowerOf2", "", "", clickPimVolatile);
                 

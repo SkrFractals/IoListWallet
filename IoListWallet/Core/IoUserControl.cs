@@ -16,7 +16,7 @@ internal abstract class IoUserControl : UserControl {
     protected readonly Dictionary<string, Grid> dGrids = [];
     protected readonly Dictionary<string, ScrollViewer> dScrolls = [];
     protected readonly Dictionary<string, WrapPanel> dTools = [];
-    protected readonly Dictionary<string, WTextBlock> dTexts = [];
+    internal readonly Dictionary<string, WTextBlock> dTexts = [];
     protected readonly Dictionary<string, IoTextBlockBase> sTexts = [];
     protected readonly Dictionary<string, WTextBox> dInputs = [];
     protected readonly Dictionary<string, IoTextBox> dsInputs = [];
@@ -129,6 +129,7 @@ internal abstract class IoUserControl : UserControl {
         if (!dCombos.TryGetValue(key, out var e))
             e = null;
         BigComboBox(ref e, owner, tooltip, itemSource, null, itemTemplate, null, true, classes);
+        e?.Combo.DontSelect = true;
         return dCombos[key] = e!;
     }
     protected WDatePicker MakeDatePick(string key, IoUserControl? owner, string tooltip, DateTime value, EventHandler<DatePickerSelectedValueChangedEventArgs>? response = null) {

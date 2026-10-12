@@ -147,9 +147,10 @@ internal abstract class IoListBase : IoUserControl {
     }
     protected virtual void Update(object? s, EventArgs e) {
         var p = MyFilter.Filters?.PageSize ?? 10;
-        if (p != pageSize)
+        if (p != pageSize) {
             SetPageSize(p);
-        else
+            Owner.UpdateMinSize();
+        } else
             App.RefreshPanel(Owner, 1 << MyIndex, false);
     }
     internal abstract bool RefreshData(CancellationToken? cancel, uint startIndex = 0, uint stopIndex = 0);
@@ -172,6 +173,7 @@ internal abstract class IoListBase : IoUserControl {
                 MakeGrouped(g, grid);  // Make group label
             else
                 PageEntries.Add((new UserControl { Content = grid }, null)); // Just a row without a group label
+            g = null;
             ++iElement;
         }
         // if we are left with one last boundary, make one last empty element, and attach the label to that
@@ -282,9 +284,11 @@ internal abstract class IoListBase : IoUserControl {
         Swipe.ClipToBounds = true;
 
         // Report How many filtered resuts:
-        MyFilter?.Results?.Text?.Text
-            = MyFilter.ResultsText
-            = SourceCount.ToString() + " - " + (SourceCount - Results).ToString() + " / " + Results.ToString();
+        MyFilter.ResultsText
+           = Results.ToString() + " = " + SourceCount.ToString() + " - " + (SourceCount - Results).ToString();
+        MyFilter?.Results?.Text?.Text = MyFilter.ResultsText;
+
+        var t = MyFilter?.dTexts;
     }
     private void MakeMyToolbar(ulong max, int page) {
         JustWrapPanel(ref toolbar);

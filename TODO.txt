@@ -1,0 +1,320 @@
+Profile Name textBox should be locked if not logged in
+
+during a drag, make unavailable windows (children) red.
+
+TextSize:
+-fixed
+-uniform (how?)
+-individual
+
+Watermarks for:
+-Address=GetNetwork().GetAddressTemplate(), Nickname=Type Nickname
+-Ticker: Id=GetNetwork.GetPolicyIdTemplate()
+
+splitscreen
+-how should i do it? dynamic docking like multi-window, or that 
+-somehow allow opening to any split direction
+-when closing:
+--is my parent somewhere? -> focus it, and just undock and close myself
+--if not, replace my dock with my parent (do not fully call undock, just swap the links)
+--it should be saved as splitscreen.json (just the mainpanel, to remember the layout, but load it pretty much the same way)
+--splitscreen is always saved as the mainpanel on the main window, but only loaded when loading a non-multi mode
+
+NetworkContent, when docked under MainMenu, can be shrunk with the ratio to gain a scrollbar, its update size must be working incorrectly or not being called there or something.
+
+rebuild czech locale
+
+
+AddressPicker: (as AddressBookEntry, AddressContent.Address)
+-MyLabel = Red[(Invalid ? L("Error") + " " + L("Invalid") : "")] + BookCol[IsInBook()] + White[IsAccount()] 
+-MyContent - Segmented + EDIT + PASTE + ACCOUNT + BOOK  OR IoTextBox 
+--EDIT - turns Segmented into TextBox
+--OWNER - (Wallet + Account) Id, default to and show only when not null
+--ACCOUNT - modal wallet->account AccountGetter (process Wallet-->Account, can add, but can't open editor)
+--Book - modal AddressBook (can add and edit, but only modally)
+
+
+bool AutoInputs(List<Txo> inputs, List<Txo> outputs, List<Txo> utxos, out List<Txo> Add){
+var s = MyNetwork.GetValue();
+foreach(var o in outputs) s.Add(o.GetValue());
+List<Txo> _u = []
+foreach(var u in utxos)
+	_u.Add(u);
+void R(Txo i){
+s.Subtract(i);
+_u.Remove(i);
+}
+foreach(var i in inputs) R(i);
+
+while(!s.IsEmpty()) { // As long as at least something is missing in inputs;
+	Txo? best = null;
+	double bestFill = 0, bestOverfill = double.MaxValue;
+	foreach(var u in _u){
+		var (fill, overfill) = u.Fills(s);
+		if(fill > bestFill || (fill >= bestFill && overfill < bestOverfill)){
+			bestFill = fill; bestOverfill = overfill; Add.Add(best = u);
+		}
+	}
+	if(best == null)
+		return false;
+ 	R(best);
+}
+return true;
+}
+
+bool AutoInputs(IoTransaction T, IoAccount A, out List<Txo> Add) => AutoInputs(T.Inputs, T.Outputs, A.Utxos,  out Add);
+
+
+
+Do you wanna play a fun little game designed to teach you some of the coolest tricks of this application? *candy*
+YAAAAY TUTORIALS!
+NNNNNNGHHH! >:(
+My kid should be lurking somewhere around this desktop, could you please bring him home?
+*a little window with a paperclip appears*
+Wow, they grow up so fast
+
+Make sure to do this for all events, especially SwipeCaptured, instead of Delete!
+protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e) {
+    base.OnDetachedFromVisualTree(e);
+    PointerCapturedBy -= OnSomeoneElseCaptured;
+}
+protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e) {
+    base.OnAttachedToVisualTree(e);
+    PointerCapturedBy -= OnSomeoneElseCaptured; // prevent double subscribe
+    PointerCapturedBy += OnSomeoneElseCaptured;
+}
+
+Put WalletSelect into NetworkContent, make WalletSelect open that page
+Put AccountSelect into WalletContent, make AccountSelect open that page
+
+---------------------------------------------------------------
+
+NetworkSettings:
+-Theme Color/Background: Parent or custom
+
+Network/Wallet/Account Content could have a DYNAMIC instance, which would detect swtiches and switch its content too
+
+Account:
+-Overview
+--Make Transaction[bindsAsOwner]
+--ShowUtxos(modal)
+--PortfolioList
+--ReceiveList (SAM? internal? external? Indices? Text?)
+--TransactionList (OnlyOwned, modal)
+--ExportAcc
+--RemoveAcc
+-Settings (Account Settings layered)
+-HistoryList
+-overview[receiveList,portfolioList,historyList,utxoList,export,delete]/edit/staking/governance
+
+AddressSelect:
+-Combobox: TxOwner / CustomAccount / AddressBook (copy of SelectAddress, but can open Add) / CustomAddress (handle or address)
+-After selecting combo, it will open corresponding modal selector
+-AddressAdd wil always refresh TrueParent, but also Panel Parent if not identical
+
+TxBuild:
+-InputsValid?
+--[remove invalid inputs]
+-Inputs Missing? (after clicking each resolver, test again)
+--if(NoTxOwner) [Select TxOwner]
+--if(TxOwner) [AutoTxOwner]
+--[AutoCustomAccount]
+--[Manual] Pens input selector
+-Change not valid (No Owner, address wrong)
+--if(NoOwner && OwnerSelectedAsChange) MakeRow("Select Owner")
+--[SelectChange] default Owner
+-ChangeNotYourAccount!
+--areYouSure?
+-Deposit/Withdraw Triggers:
+--areYouSure?/block
+-over 10% of value? (make this threshold settable per account)
+--areYouSure?
+-wanna withdraw?
+
+UtxoSelect:
+-Select: [Shown/All]
+-Unselect: [Show/All]
+-[Spend Selected]
+--(if from tx, put it there and close, if from account, then close and open a tx selector to put it in from the account as parent)
+
+TxSelect
+-if selected or new, close and open the tx from my parent
+-the items will show up as Transaction Overview item, like in history, but nickname can override it all
+
+TxViewer:
+-Overview (owner, change, overview, build, sign...)
+-Inputs
+-Outputs
+-Certificates(staking...)
+
+add resolution select if fullscreen - changing will trigger updatewindow on all opened
+-var screens = Screen.AllScreens.OrderByDescending(screen => screen.WorkingArea.Width * screen.WorkingArea.Height);
+
+both of these: just tick a set window font size for every window dynamically (to keep the ratio of control-info-tooltip, but still keep the orig settings as minimum). 
+-make sure any font change reupdates all opened windows
+-automatic font scale - detect scrollbars on root-adjacent controls, and scale the font down to the closet lower of the same ratio, and retry refresh
+
+
+
+ [TextBlock.TextProperty] = new Binding("FlagsSummary")
+public string FlagsSummary => string.Join(" | ",
+    Enum.GetValues<MyFlags>()
+        .Where(f => CurrentFlags.HasFlag(f) && f != MyFlags.None));
+
+
+
+transakce budou v network a account, ale transaction builder, viewer....?
+open account button could open a new account process first, and if successful, open that account. (if it detects more account, it makes a second textbox which to open)
+
+Make debug screen:
+-unused locales
+-missing locales
+-dirties
+
+
+
+
+
+BUILD VARIANTS:
+Mega (150 MB):
+dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishTrimmed=true -p:TrimMode=full -p:PublishSingleFile=false -p:EnableCompressionInSingleFile=false -p:InvariantGlobalization=true -p:PublishReadyToRun=true -p:DebugType=none -p:DebugSymbols=false
+Full (125 MB):
+dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishTrimmed=true -p:TrimMode=full -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:InvariantGlobalization=true -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false
+DependsNET (41 MB):
+dotnet publish -c Release -r linux-x64 --self-contained false -p:PublishTrimmed=false -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:InvariantGlobalization=true -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false
+
+DependsNET (136 MB):
+dotnet publish -c Release -r linux-x64 --self-contained false -p:PublishTrimmed=true -p:TrimMode=link -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:InvariantGlobalization=true -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false
+
+LINUX TESTING:
+-p:PublishReadyToRun=false // precompiled code
+Run:/media/sf_shared or dragdrop | chmod +x MyWallet | dotnet MyWallet.dll
+Dependency: sudo apt install libgtk-3-0
+
+
+Avalonia vs .NET MAUI
+
+
+Video:
+-show 
+
+
+------------------------------------------------------------------------------------
+
+
+AddressBook:
+-AddressBook list element
+-display 2 collumns, first wil be two rows of address display, second is little edit
+--nick only, with validity, nick color
+--no color, 
+-valid: invalid: error, blocked/warning W/D (grid), warn: yellow (grid)
+
+
+Address:
+-bool show blocked
+-bool allowWrite
+-bool AllowAddresBook
+-bool AllowAccount
+-bool validable // meh just make it callable instead
+-bool show blocked error
+-bool show warn error
+-eventually adahandle?
+-byte ShowNickOrAddr, ColorNickOrAddr?
+
+
+-Make small buttons a bit rounder (like edits, copies, pastes, infos...)
+-When a wallet is created, it should go through the transactions and fill itself after making it's addresses
+
+OnOpen should open something if it's empty here:
+-WalletSelect - Make Wallet
+-AccountSelect - Make account
+-Portfolio - greyed
+-history - greyed
+-input - greyed
+-Spo - error not found
+-transactions - make new
+-list signatures - make signature
+
+Put auto sized example font line at the bottom of interface settings(auto can be an extra argument in MakeRow, make INFO the content, CONTROL the label)
+
+------------------------------------------
+
+ACCOUNT SETTINGS:
+
+WARNING VALUE: Parent/Specific:[10]%
+
+WITHDRAWAL:
+-E_Parent - takes the same settings from the parent Wallet or network (show what that setting recursively is) Newtork skips this one and defaults to ask
+-E_Automatic - always if > Minimum
+-E_Ask - asks to automatically, if > Minimum
+-E_Manual - shows a textBox how much withdraw (disabled if == 0)
+-Minimum: 0+, is disabled if Manual (Or Parent->Manual)
+
+-Minimum Coin utxo count 1-100 (how many equal parts it tries to keep)
+-SAM - Parent / Enabled / Disabled
+-(IfTokens)Separate Coins and Tokens - Parent / Yes / No
+-(IfTokens)Maximum tokens per utxo ( 0 = unlimited) - 0
+-(IfScripts)Number of collaterals
+
+InputSelect:
+-E_Parent
+-E_Automatic
+-E_Ask
+
+AllowSendAll:
+-E_Parent
+-E_Ask
+-E_Disabled
+
+
+
+
+---------------------------------------
+
+OTHER:
+-when allowing the user to type text, do not let them use "-" or ";" or "." as those are splitting chars...?
+-Tranacions get re-added back into Transaction dictionay, when they get on chain, to keep order (lso don't sort when date/epoch and both sorts the same dir, then the SourceList parse can be reversed)
+
+AddressBlock
+-uses segmented if in address format
+-but switches itself into colored AddressBook, or ADA handle, and only clicking it will toggle it back and forth between the forms
+-use it as first line in ListAdressBook (also add Export and import of entries and whole book)
+-display name in color, and address as address on new line
+
+
+RANDOM IDEAS:
+-texts with known prefixes like addr1 should exclude them for sorting, but include them for filtering ("addr1;xyz")
+
+
+Signatures:
+-signatures will come wil transactio snapshots, you could always revert to one.
+-signning will make a new snapshot.
+-you can also choose which signature to broadcast, there can be more broadcasted and pending
+-The most likely to get validated pending signature will make all fields that do not match in your editor red
+
+
+PROCESS PANEL:
+-Modal IoPanel, tak goes through a dynamic series of Contents
+-Like AddWallet, Build Tx
+
+CONTENT SWITCHING TABS:
+-Transaction: Overview/Inputs/Outputs/Certificates/Witnesses
+-Account: Overview(Contains button for Tx history)/Portfolio/Staking
+
+CERTIFICATES:
+-Withdraw: "Withdraw": 0/1
+-Delegate: "Delegate": { "SPO1": 4, "SPO2": 1 }
+-Faucet(only testnet) "Faucet": "1000"
+-Script: "Script:": { scriptData }
+
+State saving:
+-AppSettings
+-Wallets
+-Blockchain
+-Panel Tree (do not create if foundational struct no longer exist, then abort all children)
+--might require List<Children> that is updated every time ParentPanel gets reassigned
+
+BUILD TX -> modal ProcessBuilderPanel (return: Cancelled, Failed, Success)
+-Inputs Lacking: "Spend automatically", "Fuck you, I'm selecting my inputs, with blackjack and hookers"
+-Charge lacking: "I'll take the change", "Custom change address"
+-Withdraw reewards? (if asked)

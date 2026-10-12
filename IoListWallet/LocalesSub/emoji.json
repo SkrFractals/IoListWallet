@@ -23,7 +23,11 @@
   "Danger": "💀",
   "Error": "❌",
   "Success": "✅",
-
+  "Add": "✚",
+  "Edit": "🔧",
+  "Import": "➜]",
+  "Export": "💾",
+  "Transaction": "🔗",
   "Filter": "☰",
   "Minimum": "Minimum",
   "Maximum": "Maximum",
@@ -41,10 +45,10 @@
   "NoName": "-???-",
 
   "_MainMenu": "-👁️👀-👁❤︎-☠--♾️-🌎-👁️‍🗨️--🕵🏻‍♂️-----------🕵🏻‍-----------------------",
-  "MainMenu.ProfileSelect": "👤",
-  "MainMenu.NetworkSelect": "🌐",
-  "MainMenu.WalletSelect": "🔑",
-  "MainMenu.AccountSelect": "💰",
+  "MainMenu.ProfileSelect": "👤: ",
+  "MainMenu.NetworkSelect": "🌐: ",
+  "MainMenu.WalletSelect": "🔑: ",
+  "MainMenu.AccountSelect": "💰: ",
   "Select": "-???-",
   "OpenAccount": "👁️💰",
 

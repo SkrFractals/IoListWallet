@@ -3,7 +3,7 @@ using IoListWallet.Core.Books;
 using System;
 using static IoListWallet.App;
 
-namespace IoListWallet.IoPanels.Main;
+namespace IoListWallet.Content.Main;
 internal class Tutorial : IoBookPanel {
     public Tutorial() : base() => Book.Swipe.OnRightEvent += (_, _) => { Book.Swipe.CancelDrag(); Close(); };
     /*internal enum TabTutorialPage : byte {
@@ -31,7 +31,7 @@ internal class Tutorial : IoBookPanel {
         r(GetPageNames()[e.Page.X]);
         //switch ((TabTutorialPage)e.Page.X) { case TabTutorialPage.TabTutorialIntro:
         if (e.Page.X == 0) {
-            r("First");
+            r("Intro");
             var fail = MakeTextBlock(s + "tooltipsFail", null, "", "");
             void onFail(object? s, EventArgs e) => fail.Text.Text = L(T + "TooltipsFail");
             var fBut = MakeButton(s + "tooltipTest", this, T + "TooltipsSuccess", L("TutorialTooltip"), onFail);
